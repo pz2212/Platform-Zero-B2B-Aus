@@ -18,7 +18,7 @@ interface ContactsProps {
 
 export const Contacts: React.FC<ContactsProps> = ({ user }) => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'MY CUSTOMERS' | 'PENDING SOURCING' | 'MARKET DIRECTORY'>('MY CUSTOMERS');
+  const [activeTab, setActiveTab] = useState<'MY BUYERS' | 'PENDING SOURCING' | 'MARKET DIRECTORY'>('MY BUYERS');
   const [searchTerm, setSearchTerm] = useState('');
   
   // Modal States
@@ -44,7 +44,7 @@ export const Contacts: React.FC<ContactsProps> = ({ user }) => {
   };
 
   const getFilteredList = () => {
-      if (activeTab === 'MY CUSTOMERS') {
+      if (activeTab === 'MY BUYERS') {
           return myCustomers.filter(c => 
               c.businessName.toLowerCase().includes(searchTerm.toLowerCase()) || 
               c.contactName.toLowerCase().includes(searchTerm.toLowerCase())
@@ -83,7 +83,7 @@ export const Contacts: React.FC<ContactsProps> = ({ user }) => {
                  <UsersIcon size={28} strokeWidth={2.5} />
               </div>
               <div>
-                  <h1 className="text-3xl font-black text-gray-900 tracking-tight uppercase leading-none">Customer Network</h1>
+                  <h1 className="text-3xl font-black text-gray-900 tracking-tight uppercase leading-none">Buyer Network</h1>
                   <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2 flex items-center gap-2">
                       Connected Accounts & Manual Lead Management
                   </p>
@@ -103,7 +103,7 @@ export const Contacts: React.FC<ContactsProps> = ({ user }) => {
 
       {/* TAB SELECTOR MATCHING SCREENSHOT */}
       <div className="flex bg-gray-100/60 p-1.5 rounded-[2rem] w-fit border border-gray-200/50 shadow-inner-sm mx-2">
-        {['MY CUSTOMERS', 'PENDING SOURCING', 'MARKET DIRECTORY'].map((tab) => (
+        {['MY BUYERS', 'PENDING SOURCING', 'MARKET DIRECTORY'].map((tab) => (
           <button 
             key={tab}
             onClick={() => setActiveTab(tab as any)}
@@ -121,8 +121,8 @@ export const Contacts: React.FC<ContactsProps> = ({ user }) => {
       {/* SCROLLABLE GRID AREA */}
       <div className="flex gap-8 overflow-x-auto no-scrollbar pb-12 px-2 min-h-[500px]">
           
-          {/* PROVISION BUYER CARD (DOTTED) - ONLY IN MY CUSTOMERS */}
-          {activeTab === 'MY CUSTOMERS' && (
+          {/* PROVISION BUYER CARD (DOTTED) - ONLY IN MY BUYERS */}
+          {activeTab === 'MY BUYERS' && (
               <div 
                 onClick={() => setIsInviteModalOpen(true)}
                 className="min-w-[360px] border-4 border-dashed border-gray-100 bg-white/50 rounded-[3rem] flex flex-col items-center justify-center text-center p-12 hover:border-emerald-200 hover:bg-emerald-50/30 transition-all cursor-pointer group shrink-0"
@@ -130,7 +130,7 @@ export const Contacts: React.FC<ContactsProps> = ({ user }) => {
                   <div className="w-20 h-20 bg-white rounded-3xl shadow-sm border border-gray-50 flex items-center justify-center text-emerald-500 mb-8 group-hover:scale-110 transition-transform">
                       <UserPlus size={40} strokeWidth={2.5} />
                   </div>
-                  <h3 className="text-2xl font-black text-gray-400 group-hover:text-gray-900 tracking-tight uppercase leading-none mb-4">Provision Customer</h3>
+                  <h3 className="text-2xl font-black text-gray-400 group-hover:text-gray-900 tracking-tight uppercase leading-none mb-4">Provision Buyer</h3>
                   <p className="text-[11px] text-gray-400 font-bold uppercase tracking-[0.15em] max-w-[200px] leading-relaxed">
                       Generate a direct-connect onboarding portal link
                   </p>

@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   X, Check, DollarSign, Loader2, Sparkles, TrendingUp, AlertTriangle, 
   ChevronRight, Info, Target, Calculator,
-  // Added missing Send icon import
+  // Fix: Added missing Send import
   Send
 } from 'lucide-react';
 import { SupplierPriceRequest, SupplierPriceRequestItem } from '../types';
@@ -222,7 +223,6 @@ export const WholesalerPriceRequestModal: React.FC<WholesalerPriceRequestModalPr
                             disabled={isSubmitting || !items.every(i => i.offeredPrice !== undefined)}
                             className="flex-[2] sm:flex-none px-16 py-5 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.25em] shadow-xl shadow-red-900/10 transition-all flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-50 group"
                         >
-                            {/* Fix: Send icon was used but not imported */}
                             {isSubmitting ? <Loader2 size={18} className="animate-spin"/> : <><Send size={18} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform"/> Submit Final Quote</>}
                         </button>
                     </div>

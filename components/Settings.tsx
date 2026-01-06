@@ -9,7 +9,9 @@ import {
   User as UserIcon, Truck, Building, Mail, Shield, Users, 
   Plus, X, Briefcase, LayoutTemplate, RefreshCw, ToggleLeft, 
   ToggleRight, CheckCircle, AlertTriangle, Smartphone, BellRing,
-  Phone, CreditCard, Wallet, Landmark, ArrowUpRight, Zap, Info, Loader2
+  // Fix: Added Phone import
+  Phone,
+  Info
 } from 'lucide-react';
 
 interface SettingsProps {
@@ -18,15 +20,14 @@ interface SettingsProps {
 }
 
 export const Settings: React.FC<SettingsProps> = ({ user, onRefreshUser }) => {
-  const [activeTab, setActiveTab] = useState<'profile' | 'team' | 'payments' | 'employees' | 'partners'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'team' | 'employees' | 'partners'>('profile');
   const [teamSubTab, setTeamSubTab] = useState<'drivers' | 'packers'>('drivers');
   const [employees, setEmployees] = useState<User[]>([]);
-  const [partners, setPartners] = useState<User[]>([]);
+  const [partners, setPartners] = useState<User[]>([]); // Wholesalers & Farmers
   
   const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [newEmployee, setNewEmployee] = useState<Partial<User>>({ name: '', email: '', role: UserRole.PZ_REP });
-  const [isConnectingStripe, setIsConnectingStripe] = useState(false);
 
   // SMS Preference State
   const [smsEnabled, setSmsEnabled] = useState(user.smsNotificationsEnabled || false);
@@ -46,9 +47,9 @@ export const Settings: React.FC<SettingsProps> = ({ user, onRefreshUser }) => {
       if (newEmployee.name && newEmployee.email) {
           const newUser: User = {
               id: `emp-${Date.now()}`,
-              name: newEmployee.name,
-              email: newEmployee.email,
-              role: UserRole.PZ_REP,
+              name: newEmployee.name!,
+              email: newEmployee.email!,
+              role: UserRole.PZ_REP, // Default to rep
               businessName: 'Platform Zero'
           };
           mockService.addEmployee(newUser);
@@ -57,15 +58,6 @@ export const Settings: React.FC<SettingsProps> = ({ user, onRefreshUser }) => {
           setNewEmployee({ name: '', email: '', role: UserRole.PZ_REP });
           alert("Employee added successfully!");
       }
-  };
-
-  const handleConnectStripe = async () => {
-    setIsConnectingStripe(true);
-    await new Promise(r => setTimeout(r, 2000));
-    mockService.connectStripe(user.id);
-    setIsConnectingStripe(false);
-    if (onRefreshUser) onRefreshUser();
-    alert("Stripe Connected! You can now accept credit card payments on 'Make a Sale'.");
   };
 
   const handleSwitchToV1 = () => {
@@ -98,7 +90,7 @@ export const Settings: React.FC<SettingsProps> = ({ user, onRefreshUser }) => {
       <h1 className="text-3xl font-black text-gray-900 tracking-tight uppercase">Account Settings</h1>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200">
+      <div className="border-b border-gray-100">
         <nav className="-mb-px flex space-x-8 overflow-x-auto no-scrollbar">
           <button
             onClick={() => setActiveTab('profile')}
@@ -111,20 +103,6 @@ export const Settings: React.FC<SettingsProps> = ({ user, onRefreshUser }) => {
             <UserIcon size={14} strokeWidth={3} />
             My Identity
           </button>
-
-          {(user.role === UserRole.WHOLESALER || user.role === UserRole.FARMER) && (
-            <button
-                onClick={() => setActiveTab('payments')}
-                className={`whitespace-nowrap py-4 px-1 border-b-4 font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all ${
-                    activeTab === 'payments'
-                    ? 'border-emerald-600 text-emerald-600'
-                    : 'border-transparent text-gray-400 hover:text-gray-700'
-                }`}
-            >
-                <CreditCard size={14} strokeWidth={3} />
-                Payments & Payouts
-            </button>
-          )}
 
           {user.role === UserRole.WHOLESALER && (
             <button
@@ -173,6 +151,7 @@ export const Settings: React.FC<SettingsProps> = ({ user, onRefreshUser }) => {
       <div className="mt-6">
         {activeTab === 'profile' && (
           <div className="space-y-8 animate-in fade-in duration-500">
+            {/* ALERT IF PROFILE INCOMPLETE */}
             {!isProfileComplete && (user.role === UserRole.WHOLESALER || user.role === UserRole.FARMER) && (
                 <div className="bg-red-50 border-2 border-red-100 rounded-[2rem] p-8 flex items-center gap-6 shadow-sm">
                     <div className="bg-red-100 p-4 rounded-2xl">
@@ -219,7 +198,7 @@ export const Settings: React.FC<SettingsProps> = ({ user, onRefreshUser }) => {
                     </div>
                 </div>
                 
-                <div className="pt-8 border-t border-gray-50 flex justify-end">
+                <div className="pt-8 border-t border-gray-100 flex justify-end">
                     <button 
                         onClick={() => setIsProfileModalOpen(true)}
                         className="px-10 py-4 bg-white border-2 border-gray-100 rounded-2xl text-gray-400 font-black text-[10px] uppercase tracking-widest hover:border-indigo-500 hover:text-indigo-600 transition-all shadow-sm active:scale-95"
@@ -229,6 +208,7 @@ export const Settings: React.FC<SettingsProps> = ({ user, onRefreshUser }) => {
                 </div>
             </div>
 
+            {/* COMMUNICATION PREFERENCES */}
             <div className="bg-white shadow-sm rounded-[2.5rem] overflow-hidden border border-gray-100 p-10 space-y-8">
                 <div className="flex items-center gap-4 mb-2">
                     <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl">
@@ -277,102 +257,42 @@ export const Settings: React.FC<SettingsProps> = ({ user, onRefreshUser }) => {
                                     Verify
                                 </button>
                             </div>
+                            <p className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest mt-4 flex items-center gap-2">
+                                <Info size={12}/> Carrier rates may apply for standard SMS notifications.
+                            </p>
                         </div>
                     )}
                 </div>
             </div>
-          </div>
-        )}
 
-        {activeTab === 'payments' && (
-            <div className="space-y-8 animate-in fade-in duration-500">
-                <div className="bg-white rounded-[2.5rem] border border-gray-100 p-10 shadow-sm">
-                    <div className="flex justify-between items-start mb-12">
-                        <div className="flex gap-5 items-center">
-                            <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-inner-sm"><CreditCard size={28}/></div>
-                            <div>
-                                <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tight">Payments & Settlement</h3>
-                                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-2">Manage how you accept and receive funds</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="space-y-8">
-                        {/* Stripe Connection Status */}
-                        <div className={`p-8 rounded-[2rem] border-2 transition-all flex flex-col md:flex-row items-center justify-between gap-8 ${user.isStripeConnected ? 'bg-emerald-50/30 border-emerald-100' : 'bg-gray-50 border-gray-100'}`}>
-                            <div className="flex items-center gap-6">
-                                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg ${user.isStripeConnected ? 'bg-emerald-500 text-white' : 'bg-white text-indigo-500'}`}>
-                                    <Zap size={32} fill={user.isStripeConnected ? 'white' : 'none'}/>
-                                </div>
-                                <div>
-                                    <h4 className="text-xl font-black text-gray-900 uppercase tracking-tight flex items-center gap-2">
-                                        Accept Credit Cards 
-                                        {user.isStripeConnected && <CheckCircle size={18} className="text-emerald-500"/>}
-                                    </h4>
-                                    <p className="text-sm text-gray-500 font-medium mt-1">
-                                        {user.isStripeConnected 
-                                            ? `Connected to Stripe (${user.stripeAccountId})` 
-                                            : "Connect your account to Stripe to enable 'Credit Card (Now)' on your sales console."}
-                                    </p>
-                                </div>
-                            </div>
-                            <button 
-                                onClick={handleConnectStripe}
-                                disabled={isConnectingStripe || user.isStripeConnected}
-                                className={`px-10 py-5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl transition-all active:scale-95 flex items-center gap-3 ${
-                                    user.isStripeConnected 
-                                    ? 'bg-emerald-100 text-emerald-700 cursor-not-allowed shadow-none' 
-                                    : 'bg-[#6366F1] hover:bg-[#4F46E5] text-white shadow-indigo-100'
-                                }`}
-                            >
-                                {isConnectingStripe ? <Loader2 size={16} className="animate-spin"/> : <Zap size={16}/>}
-                                {user.isStripeConnected ? 'Stripe Connected' : 'Connect with Stripe'}
-                            </button>
-                        </div>
-
-                        {/* Marketplace Wallet / Bank Details */}
-                        <div className="bg-white rounded-[2rem] border border-gray-100 p-8 shadow-sm">
-                            <h4 className="text-lg font-black text-gray-900 uppercase tracking-tight mb-8 flex items-center gap-3">
-                                <Landmark size={24} className="text-indigo-600"/> Payout Ledger
-                            </h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div className="space-y-1.5">
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Trade Revenue (Settled)</p>
-                                    <h3 className="text-4xl font-black text-gray-900 tracking-tighter">$14,250.00</h3>
-                                    <p className="text-[10px] text-emerald-600 font-black uppercase tracking-widest flex items-center gap-2 mt-2">
-                                        <CheckCircle size={14}/> 100% Secure & Audited
-                                    </p>
-                                </div>
-                                <div className="space-y-1.5 bg-gray-50 rounded-3xl p-6 border border-gray-100 relative group">
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Connected Bank Account</p>
-                                    <div className="mt-4 flex items-center gap-4">
-                                        <div className="p-3 bg-white rounded-xl shadow-sm"><Landmark size={20} className="text-indigo-500"/></div>
-                                        <div>
-                                            <p className="font-black text-gray-900 text-sm uppercase tracking-tight">{user.businessProfile?.bankName || 'CommonBank'}</p>
-                                            <p className="text-[10px] text-gray-400 font-bold">BSB: {user.businessProfile?.bsb || '000-000'} • ACC: ••••{user.businessProfile?.accountNumber?.slice(-4) || '5678'}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-[#0B1221] text-white p-8 rounded-[2rem] shadow-xl relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 p-8 opacity-5 transform rotate-12 scale-150"><Shield size={120}/></div>
-                            <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em] mb-6 flex items-center gap-2">
-                                <Shield size={14}/> Settlement Compliance
-                            </h4>
-                            <p className="text-xs text-slate-300 leading-relaxed max-w-2xl font-medium">
-                                Platform Zero utilizes Stripe and local banking rails to provide <span className="text-white font-black">automated marketplace clearing</span>. Revenue from Credit Card sales is settled to your wallet instantly, while Invoice terms are settled upon buyer payment confirmation.
+            {/* DASHBOARD VERSION TOGGLE */}
+            {(user.role === UserRole.WHOLESALER || user.role === UserRole.FARMER) && (
+                <div className="bg-[#0B1221] rounded-[2.5rem] p-10 text-white shadow-2xl relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-10 opacity-5 transform rotate-12 scale-150 group-hover:rotate-0 transition-transform duration-700"><LayoutTemplate size={120}/></div>
+                    <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+                        <div>
+                            <h3 className="text-2xl font-black tracking-tight flex items-center gap-3 uppercase">
+                                <LayoutTemplate className="text-emerald-400" size={28}/> Dashboard Mode
+                            </h3>
+                            <p className="text-slate-400 text-sm font-medium mt-2 max-w-md">
+                                You are currently using the <span className="text-white font-black">Advanced (v2)</span> interface. Switch to Simplified for high-speed mobile operations.
                             </p>
                         </div>
+                        <button 
+                            onClick={handleSwitchToV1}
+                            className="w-full md:w-auto px-10 py-5 bg-white text-[#0B1221] font-black rounded-2xl shadow-xl hover:bg-emerald-400 transition-all active:scale-95 text-[10px] uppercase tracking-[0.2em]"
+                        >
+                            Switch to Simplified (v1)
+                        </button>
                     </div>
                 </div>
-            </div>
+            )}
+          </div>
         )}
 
         {activeTab === 'team' && user.role === UserRole.WHOLESALER && (
           <div className="space-y-6">
-              <div className="flex gap-4 border-b border-gray-200 pb-1">
+              <div className="flex gap-4 border-b border-gray-100 pb-1">
                   <button 
                       onClick={() => setTeamSubTab('drivers')}
                       className={`pb-4 px-6 text-[10px] font-black uppercase tracking-widest transition-all border-b-4 ${teamSubTab === 'drivers' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-gray-400 hover:text-gray-700'}`}
@@ -410,7 +330,7 @@ export const Settings: React.FC<SettingsProps> = ({ user, onRefreshUser }) => {
                             <div key={p.id} className="p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:bg-gray-50 transition-colors group">
                                 <div className="flex items-center gap-6">
                                     <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-black shadow-inner-sm border ${
-                                        p.role === UserRole.FARMER ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-blue-50 text-blue-600 border-blue-100'
+                                        p.role === UserRole.FARMER ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-blue-50 text-blue-700 border-blue-100'
                                     }`}>
                                         {p.businessName.charAt(0)}
                                     </div>
@@ -424,6 +344,13 @@ export const Settings: React.FC<SettingsProps> = ({ user, onRefreshUser }) => {
                                             </span>
                                         </div>
                                         <div className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">{p.name} • {p.email}</div>
+                                        <div className="mt-2 flex items-center gap-2">
+                                            {p.businessProfile?.isComplete ? (
+                                                <span className="text-emerald-600 font-black text-[9px] uppercase tracking-widest flex items-center gap-1.5"><CheckCircle size={14}/> Verified Profile</span>
+                                            ) : (
+                                                <span className="text-red-500 font-black text-[9px] uppercase tracking-widest flex items-center gap-1.5"><AlertTriangle size={14}/> Incomplete Identity</span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
 
@@ -453,8 +380,111 @@ export const Settings: React.FC<SettingsProps> = ({ user, onRefreshUser }) => {
                 </div>
             </div>
         )}
+
+        {activeTab === 'employees' && user.role === UserRole.ADMIN && (
+            <div className="space-y-8">
+                <div className="flex justify-between items-center px-1">
+                    <div>
+                        <h2 className="text-2xl font-black text-gray-900 tracking-tight uppercase">Platform Representatives</h2>
+                        <p className="text-gray-500 font-medium">Manage HQ agents for sales, support and success.</p>
+                    </div>
+                    <button 
+                        onClick={() => setIsEmployeeModalOpen(true)}
+                        className="px-8 py-3 bg-[#043003] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-black transition-all flex items-center gap-2 active:scale-95"
+                    >
+                        <Plus size={18} strokeWidth={3}/> Add Agent
+                    </button>
+                </div>
+
+                <div className="bg-white shadow-sm border border-gray-100 rounded-[2.5rem] overflow-hidden">
+                    <div className="divide-y divide-gray-100">
+                        {employees.map(emp => (
+                            <div key={emp.id} className="p-6 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                                <div className="flex items-center gap-5">
+                                    <div className="h-14 w-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 font-black text-xl shadow-inner-sm border border-indigo-100/50">
+                                        {emp.name.charAt(0)}
+                                    </div>
+                                    <div>
+                                        <div className="font-black text-gray-900 text-lg uppercase tracking-tight">{emp.name}</div>
+                                        <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">{emp.email}</div>
+                                    </div>
+                                </div>
+                                <span className="px-5 py-2 bg-indigo-50 text-indigo-700 rounded-xl text-[10px] font-black uppercase tracking-widest border border-indigo-100 shadow-inner-sm">
+                                    Market Success Rep
+                                </span>
+                            </div>
+                        ))}
+                        {employees.length === 0 && (
+                            <div className="p-20 text-center text-gray-300">
+                                <Users size={48} className="mx-auto mb-4 opacity-10"/>
+                                <p className="text-xs font-black uppercase tracking-widest">No agents provisioned</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Add Employee Modal */}
+                {isEmployeeModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-md p-4">
+                        <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md animate-in zoom-in-95 duration-200 overflow-hidden">
+                            <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                                <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">Provision Agent</h2>
+                                <button onClick={() => setIsEmployeeModalOpen(false)} className="text-gray-400 hover:text-gray-600 p-1 bg-white rounded-full border border-gray-100 shadow-sm"><X size={20}/></button>
+                            </div>
+                            <form onSubmit={handleAddEmployee} className="p-10 space-y-6">
+                                <div>
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Full Name</label>
+                                    <div className="relative group">
+                                        <UserIcon size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-indigo-500 transition-colors"/>
+                                        <input 
+                                            required 
+                                            type="text" 
+                                            value={newEmployee.name} 
+                                            onChange={e => setNewEmployee({...newEmployee, name: e.target.value})}
+                                            className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:bg-white outline-none font-bold text-gray-900 transition-all" 
+                                            placeholder="Jane Doe"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Corporate Email</label>
+                                    <div className="relative group">
+                                        <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-indigo-500 transition-colors"/>
+                                        <input 
+                                            required 
+                                            type="email" 
+                                            value={newEmployee.email} 
+                                            onChange={e => setNewEmployee({...newEmployee, email: e.target.value})}
+                                            className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:bg-white outline-none font-bold text-gray-900 transition-all" 
+                                            placeholder="jane@platformzero.io"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Restricted Role</label>
+                                    <div className="relative group">
+                                        <Briefcase size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300"/>
+                                        <select 
+                                            className="w-full pl-12 pr-4 py-4 border border-gray-100 rounded-2xl bg-gray-100 font-bold text-gray-400 cursor-not-allowed appearance-none"
+                                            disabled
+                                        >
+                                            <option>Platform Representative</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="pt-6 flex gap-3">
+                                    <button type="button" onClick={() => setIsEmployeeModalOpen(false)} className="flex-1 py-4 text-gray-400 font-black text-[10px] uppercase tracking-widest hover:bg-gray-50 rounded-2xl transition-all">Cancel</button>
+                                    <button type="submit" className="flex-[2] py-4 bg-[#043003] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-black transition-all">Provision Account</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
+            </div>
+        )}
       </div>
 
+      {/* Complete Profile Modal */}
       <CompleteProfileModal 
         isOpen={isProfileModalOpen} 
         onClose={() => setIsProfileModalOpen(false)}
@@ -464,3 +494,7 @@ export const Settings: React.FC<SettingsProps> = ({ user, onRefreshUser }) => {
     </div>
   );
 };
+
+const Info = ({ size = 24, ...props }: any) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+);

@@ -14,7 +14,6 @@ import {
   Eye, ChevronRight, Clock
 } from 'lucide-react';
 import { ChatDialog } from './ChatDialog';
-import { ManualInviteModal } from './ManualInviteModal';
 
 interface SupplierMarketProps {
   user: User;
@@ -24,19 +23,16 @@ export const SupplierMarket: React.FC<SupplierMarketProps> = ({ user }) => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'MY_NETWORK' | 'DISCOVERY' | 'QUOTES'>('DISCOVERY');
   const [searchTerm, setSearchTerm] = useState('');
-  const [showOnlyMatches, setShowOnlyMatches] = useState(false);
   
   // Data State
   const [allSuppliers, setAllSuppliers] = useState<User[]>([]);
   const [procurementRequests, setProcurementRequests] = useState<ProcurementRequest[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
-  const [matchedSuppliers, setMatchedSuppliers] = useState<any[]>([]);
   
   // UI State
   const [expandedSupplierId, setExpandedSupplierId] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatTargetName, setChatTargetName] = useState('');
-  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   
   // Quote Request State
   const [requestingPriceItem, setRequestingPriceItem] = useState<{item: InventoryItem, product: Product, supplier: User} | null>(null);
@@ -61,10 +57,6 @@ export const SupplierMarket: React.FC<SupplierMarketProps> = ({ user }) => {
     setAllSuppliers(suppliers);
     setInventory(mockService.getAllInventory());
     setProcurementRequests(mockService.getProcurementRequests(user.id).filter(r => r.buyerId === user.id));
-    
-    // Smart Matching Logic
-    const matches = mockService.getMatchedSuppliers(user.id);
-    setMatchedSuppliers(matches);
   };
 
   const handleConnect = (e: React.MouseEvent, supplier: User) => {
@@ -110,21 +102,10 @@ export const SupplierMarket: React.FC<SupplierMarketProps> = ({ user }) => {
     return allSuppliers.filter(s => sellerIds.has(s.id));
   }, [allSuppliers, user.id]);
 
-  const filteredDiscovery = allSuppliers.filter(s => {
-    const matchesSearch = s.businessName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        s.activeSellingInterests?.some(i => i.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    if (showOnlyMatches) {
-        return matchesSearch && matchedSuppliers.some(m => m.id === s.id);
-    }
-    return matchesSearch;
-  }).sort((a, b) => {
-      const aIsMatch = matchedSuppliers.some(m => m.id === a.id);
-      const bIsMatch = matchedSuppliers.some(m => m.id === b.id);
-      if (aIsMatch && !bIsMatch) return -1;
-      if (!aIsMatch && bIsMatch) return 1;
-      return 0;
-  });
+  const filteredDiscovery = allSuppliers.filter(s => 
+    s.businessName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.activeSellingInterests?.some(i => i.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500 pb-20">
@@ -162,32 +143,6 @@ export const SupplierMarket: React.FC<SupplierMarketProps> = ({ user }) => {
 
       {activeTab === 'DISCOVERY' && (
         <div className="space-y-8 px-2 animate-in slide-in-from-right-4">
-            
-            {/* SMART MATCH BANNER */}
-            {matchedSuppliers.length > 0 && (
-                <div className="bg-[#EEF2FF] border-2 border-indigo-100 rounded-[2.5rem] p-8 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-8 opacity-5 transform rotate-12 scale-150 group-hover:rotate-0 transition-transform duration-1000"><Sparkles size={160} /></div>
-                    <div className="flex items-center gap-6 relative z-10">
-                        <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-indigo-600 shadow-xl border border-indigo-50 shrink-0">
-                            <BrainCircuit size={32} strokeWidth={2.5}/>
-                        </div>
-                        <div>
-                            <h3 className="text-xl font-black text-indigo-900 uppercase tracking-tight">Smart Matches Found</h3>
-                            <p className="text-sm text-indigo-600 font-medium leading-relaxed max-w-xl">
-                                Based on your buying interests, we've identified <span className="font-black">{matchedSuppliers.length} partners</span> who sell exactly what you need.
-                            </p>
-                        </div>
-                    </div>
-                    <button 
-                        onClick={() => setShowOnlyMatches(!showOnlyMatches)}
-                        className={`relative z-10 px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-xl active:scale-95 flex items-center gap-2 ${showOnlyMatches ? 'bg-indigo-600 text-white shadow-indigo-200' : 'bg-white text-indigo-600 border border-indigo-100'}`}
-                    >
-                        {showOnlyMatches ? <CheckCircle size={16}/> : <Plus size={16}/>}
-                        {showOnlyMatches ? 'Showing All' : 'Show Only Matches'}
-                    </button>
-                </div>
-            )}
-
             <div className="flex flex-col md:flex-row gap-4">
                 <div className="relative flex-1 group">
                     <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 transition-colors" size={24}/>
@@ -198,11 +153,8 @@ export const SupplierMarket: React.FC<SupplierMarketProps> = ({ user }) => {
                         onChange={e => setSearchTerm(e.target.value)}
                     />
                 </div>
-                <button 
-                  onClick={() => setIsInviteModalOpen(true)}
-                  className="px-10 py-5 bg-[#043003] text-white rounded-[2rem] font-black uppercase text-[11px] tracking-widest flex items-center justify-center gap-2 hover:bg-black transition-all shadow-xl shadow-emerald-900/10 active:scale-95"
-                >
-                    <UserPlus size={20}/> Invite New Supplier
+                <button className="px-10 py-5 bg-white border-2 border-gray-100 rounded-[2rem] text-gray-400 font-black uppercase text-[11px] tracking-widest flex items-center justify-center gap-2 hover:border-gray-200 transition-all shadow-sm">
+                    <Filter size={20}/> Advanced Filter
                 </button>
             </div>
 
@@ -210,10 +162,9 @@ export const SupplierMarket: React.FC<SupplierMarketProps> = ({ user }) => {
                 {filteredDiscovery.map(supplier => {
                     const isExpanded = expandedSupplierId === supplier.id;
                     const supplierStock = inventory.filter(i => i.ownerId === supplier.id && i.status === 'Available');
-                    const matchData = matchedSuppliers.find(m => m.id === supplier.id);
 
                     return (
-                        <div key={supplier.id} className={`bg-white rounded-[2.5rem] border transition-all overflow-hidden flex flex-col group ${isExpanded ? 'border-indigo-600 shadow-2xl lg:col-span-2' : 'border-gray-100 hover:border-indigo-200 shadow-sm'} ${matchData ? 'ring-2 ring-indigo-50 ring-offset-4' : ''}`}>
+                        <div key={supplier.id} className={`bg-white rounded-[2.5rem] border transition-all overflow-hidden flex flex-col group ${isExpanded ? 'border-indigo-600 shadow-2xl lg:col-span-2' : 'border-gray-100 hover:border-indigo-200 shadow-sm'}`}>
                             <div 
                                 onClick={() => setExpandedSupplierId(isExpanded ? null : supplier.id)}
                                 className="p-8 flex flex-col justify-between h-full cursor-pointer hover:bg-gray-50/50 transition-colors"
@@ -224,14 +175,7 @@ export const SupplierMarket: React.FC<SupplierMarketProps> = ({ user }) => {
                                             {supplier.businessName.charAt(0)}
                                         </div>
                                         <div>
-                                            <div className="flex items-center gap-2">
-                                                <h3 className="text-2xl font-black text-gray-900 tracking-tight leading-none uppercase">{supplier.businessName}</h3>
-                                                {matchData && (
-                                                    <div className="bg-indigo-600 text-white p-1 rounded-lg animate-in zoom-in" title="Smart Match Found">
-                                                        <Sparkles size={12}/>
-                                                    </div>
-                                                )}
-                                            </div>
+                                            <h3 className="text-2xl font-black text-gray-900 tracking-tight leading-none uppercase">{supplier.businessName}</h3>
                                             <div className="flex items-center gap-3 mt-2">
                                                 <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border ${supplier.role === 'FARMER' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>{supplier.role}</span>
                                                 <span className="text-[10px] text-gray-400 font-bold uppercase flex items-center gap-1"><MapPin size={12}/> {supplier.businessProfile?.businessLocation || 'SA Produce Market'}</span>
@@ -243,21 +187,8 @@ export const SupplierMarket: React.FC<SupplierMarketProps> = ({ user }) => {
                                     </div>
                                 </div>
 
-                                {matchData && (
-                                    <div className="mb-6 animate-in slide-in-from-top-2">
-                                        <p className="text-[8px] font-black text-indigo-400 uppercase tracking-[0.25em] mb-2">Automated Connections (Matched)</p>
-                                        <div className="flex flex-wrap gap-1.5">
-                                            {matchData.matches.map((m: string) => (
-                                                <span key={m} className="px-2.5 py-1 bg-indigo-600 text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-sm">
-                                                    {m}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
                                 <div className="space-y-4 mb-8">
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Full Catalog Capabilities</p>
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Specialties</p>
                                     <div className="flex flex-wrap gap-2">
                                         {(supplier.activeSellingInterests || ['Fresh Produce', 'General Wholesale']).map(i => (
                                             <span key={i} className="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-[10px] font-black uppercase tracking-tight">{i}</span>
@@ -347,7 +278,7 @@ export const SupplierMarket: React.FC<SupplierMarketProps> = ({ user }) => {
                     </div>
                 </div>
                 <button 
-                    onClick={() => setIsInviteModalOpen(true)}
+                    onClick={() => setActiveTab('DISCOVERY')}
                     className="px-10 py-5 bg-[#0F172A] text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.25em] shadow-xl hover:bg-black transition-all active:scale-95 flex items-center gap-3"
                 >
                     <Plus size={18}/> Provision New Partner
@@ -359,7 +290,7 @@ export const SupplierMarket: React.FC<SupplierMarketProps> = ({ user }) => {
                     <div className="py-40 text-center opacity-30 grayscale bg-white rounded-[3rem] border-2 border-dashed border-gray-100">
                         <UserPlus size={80} className="mx-auto mb-6 text-gray-300"/>
                         <p className="text-lg font-black uppercase tracking-[0.2em] text-gray-400">No established supply partners yet</p>
-                        <button onClick={() => setIsInviteModalOpen(true)} className="mt-6 text-indigo-600 font-black uppercase text-xs hover:underline">Explore Marketplace Discovery</button>
+                        <button onClick={() => setActiveTab('DISCOVERY')} className="mt-6 text-indigo-600 font-black uppercase text-xs hover:underline">Explore Marketplace Discovery</button>
                     </div>
                 ) : myNetworkSuppliers.map(supplier => (
                     <div key={supplier.id} className="bg-white p-8 rounded-[3rem] border border-gray-100 shadow-sm flex flex-col md:flex-row justify-between items-center gap-8 group hover:shadow-xl transition-all">
@@ -438,7 +369,7 @@ export const SupplierMarket: React.FC<SupplierMarketProps> = ({ user }) => {
                                     </div>
                                     <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                                         <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Target Date</p>
-                                        <p className="font-black text-gray-900 text-sm">{req.requiredDate.split('-').reverse().join('/')}</p>
+                                        <p className="text-xl font-black text-gray-900 tracking-tighter">{req.requiredDate.split('-').reverse().join('/')}</p>
                                     </div>
                                 </div>
                             </div>
@@ -567,11 +498,6 @@ export const SupplierMarket: React.FC<SupplierMarketProps> = ({ user }) => {
         orderId="NETWORK-THREAD" 
         issueType={`Network Partnership Inquiry`} 
         repName={chatTargetName} 
-      />
-
-      <ManualInviteModal 
-        isOpen={isInviteModalOpen} 
-        onClose={() => setIsInviteModalOpen(false)} 
       />
     </div>
   );

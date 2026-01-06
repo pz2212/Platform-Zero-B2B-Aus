@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import { UserRole, User, AppNotification, RegistrationRequest } from '../types';
@@ -34,6 +35,7 @@ import { SharedProductLanding } from './SharedProductLanding';
 import { EnvironmentalImpact } from './EnvironmentalImpact';
 import { AdminMarketOps } from './AdminMarketOps';
 import { InterestsModal } from './InterestsModal';
+import { RepDashboard } from './RepDashboard';
 import { 
   LayoutDashboard, ShoppingCart, Users, Settings, LogOut, Tags, ChevronDown, UserPlus, 
   DollarSign, X, Lock, ArrowLeft, Bell, 
@@ -64,23 +66,6 @@ const SidebarLink = ({ to, icon: Icon, label, active, onClick, badge = 0, isSubI
         </span>
     )}
   </Link>
-);
-
-const SidebarButton = ({ icon: Icon, label, onClick }: any) => (
-  <button 
-    onClick={onClick}
-    className="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all group text-gray-500 hover:bg-indigo-50 hover:text-indigo-700"
-  >
-    <div className="flex items-center space-x-3 min-w-0">
-        <Icon size={20} className="text-gray-400 group-hover:text-indigo-600 transition-colors" />
-        <span className="text-sm truncate font-bold tracking-tight uppercase">
-            {label}
-        </span>
-    </div>
-    <div className="bg-indigo-600/10 p-1 rounded-lg">
-        <ArrowRight size={12} className="text-indigo-600"/>
-    </div>
-  </button>
 );
 
 const AppLayout = ({ children, user, onLogout }: any) => {
@@ -115,18 +100,6 @@ const AppLayout = ({ children, user, onLogout }: any) => {
       }
   }, [user]);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsMobileMenuOpen(false);
-      }
-    };
-    if (isMobileMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isMobileMenuOpen]);
-
   const handleManualConfirm = async () => {
     setIsConfirmingEmail(true);
     await emailService.sendSmartEmail(
@@ -138,11 +111,6 @@ const AppLayout = ({ children, user, onLogout }: any) => {
     setIsConfirmingEmail(false);
   };
 
-  const handleAlignmentSaved = () => {
-      sessionStorage.setItem(`pz_aligned_${user.id}`, 'true');
-      setShowDailyPulse(false);
-  };
-
   const NavContent = () => (
     <>
       {user.role === UserRole.ADMIN ? (
@@ -151,7 +119,7 @@ const AppLayout = ({ children, user, onLogout }: any) => {
             <SidebarLink to="/" icon={LayoutDashboard} label="Dashboard" active={isActive('/', true)} />
             <SidebarLink to="/live-ops" icon={BarChart4} label="Live Operations" active={isActive('/live-ops')} />
             
-            <div className="pt-4 mt-4 border-t border-gray-50 space-y-1">
+            <div className="pt-4 mt-4 border-t border-gray-100 space-y-1">
                 <p className="px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Market Data</p>
                 
                 <div className="space-y-1">
@@ -182,7 +150,7 @@ const AppLayout = ({ children, user, onLogout }: any) => {
                 <SidebarLink to="/admin-accounts" icon={Wallet} label="Global Ledger" active={isActive('/admin-accounts')} />
             </div>
 
-            <div className="pt-4 mt-4 border-t border-gray-50">
+            <div className="pt-4 mt-4 border-t border-gray-100">
                 <p className="px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Leads</p>
                 <SidebarLink to="/pricing-requests" icon={Calculator} label="Pricing Audits" active={isActive('/pricing-requests')} />
                 <SidebarLink to="/negotiations" icon={Gavel} label="Negotiations" active={isActive('/negotiations')} />
@@ -190,15 +158,20 @@ const AppLayout = ({ children, user, onLogout }: any) => {
 
             <div className="pt-4 mt-4 border-t border-gray-100">
                 <p className="px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Management</p>
-                <SidebarLink to="/rep-management" icon={Briefcase} label="Rep Management" active={isActive('/rep-management')} />
+                <SidebarLink to="/rep-management" icon={Briefcase} label="Team & Reps" active={isActive('/rep-management')} />
                 <SidebarLink to="/suppliers" icon={Store} label="Suppliers" active={isActive('/suppliers')} />
                 <SidebarLink to="/marketplace" icon={Layers} label="Catalog Manager" active={isActive('/marketplace')} />
             </div>
           </div>
+      ) : user.role === UserRole.PZ_REP ? (
+        <div className="space-y-1">
+            <SidebarLink to="/" icon={LayoutDashboard} label="Dashboard" active={isActive('/', true)} />
+            <SidebarLink to="/contacts" icon={UsersIcon} label="My Client Network" active={isActive('/contacts')} />
+            <SidebarLink to="/impact" icon={Leaf} label="Impact Ledger" active={isActive('/impact')} />
+            <SidebarLink to="/accounts" icon={DollarSign} label="Commissions" active={isActive('/accounts')} />
+        </div>
       ) : user.role === UserRole.CONSUMER ? (
         <div className="space-y-1">
-            <SidebarButton icon={Sparkles} label="Market Alignment" onClick={() => setShowDailyPulse(true)} />
-            <div className="my-2 h-px bg-gray-50 mx-4"></div>
             <SidebarLink to="/" icon={LayoutDashboard} label="Dashboard" active={isActive('/', true)} />
             <SidebarLink to="/orders" icon={ShoppingCart} label="Track Orders" active={isActive('/orders')} />
             <SidebarLink to="/marketplace" icon={ShoppingBag} label="Fresh Catalog" active={isActive('/marketplace')} />
@@ -206,8 +179,6 @@ const AppLayout = ({ children, user, onLogout }: any) => {
         </div>
       ) : user.role === UserRole.GROCERY ? (
         <div className="space-y-1">
-            <SidebarButton icon={Sparkles} label="Market Alignment" onClick={() => setShowDailyPulse(true)} />
-            <div className="my-2 h-px bg-gray-50 mx-4"></div>
             <SidebarLink to="/" icon={LayoutDashboard} label="Dashboard" active={isActive('/', true)} />
             <SidebarLink to="/grocer/marketplace" icon={TrendingDown} label="Clearance Market" active={isActive('/grocer/marketplace')} />
             <SidebarLink to="/orders" icon={ShoppingCart} label="My Orders" active={isActive('/orders')} />
@@ -215,10 +186,8 @@ const AppLayout = ({ children, user, onLogout }: any) => {
         </div>
       ) : isPartner ? (
         <div className="space-y-1">
-            <SidebarButton icon={Sparkles} label="Market Alignment" onClick={() => setShowDailyPulse(true)} />
-            <div className="my-2 h-px bg-gray-50 mx-4"></div>
             <SidebarLink to="/" icon={LayoutDashboard} label="Dashboard" active={isActive('/', true)} />
-            <SidebarLink to="/contacts" icon={UsersIcon} label="Customer Network" active={isActive('/contacts')} />
+            <SidebarLink to="/contacts" icon={UsersIcon} label="Buyer Network" active={isActive('/contacts')} />
             <SidebarLink to="/pricing" icon={Tags} label="Inventory & Price" active={isActive('/pricing')} />
             <SidebarLink to="/accounts" icon={DollarSign} label="Financials" active={isActive('/accounts')} />
             <SidebarLink to="/market" icon={Globe} label="Supplier Market" active={isActive('/market')} />
@@ -233,7 +202,7 @@ const AppLayout = ({ children, user, onLogout }: any) => {
         user={user} 
         isOpen={showDailyPulse} 
         onClose={() => setShowDailyPulse(false)} 
-        onSaved={handleAlignmentSaved} 
+        onSaved={() => {}} 
       />
 
       {user && !user.isConfirmed && (
@@ -310,30 +279,6 @@ const AppLayout = ({ children, user, onLogout }: any) => {
                     <span>NAVIGATE</span>
                     <ChevronDown size={12} strokeWidth={3} className={`transition-transform duration-300 ${isMobileMenuOpen ? 'rotate-180' : ''}`}/>
                   </button>
-
-                  {isMobileMenuOpen && (
-                    <div className="absolute right-0 top-14 w-[260px] bg-white rounded-3xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] border border-gray-100 py-4 px-3 z-[60] animate-in zoom-in-95 slide-in-from-top-2 duration-200">
-                        <div className="px-4 py-2 mb-4 border-b border-gray-50">
-                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-0.5">Account</p>
-                            <p className="font-black text-gray-900 uppercase truncate text-xs">{user?.businessName}</p>
-                        </div>
-                        
-                        <div className="space-y-1">
-                            <NavContent />
-                        </div>
-
-                        <div className="mt-4 pt-4 border-t border-gray-100 space-y-1">
-                            <SidebarLink to="/settings" icon={Settings} label="Settings" active={isActive('/settings')} />
-                            <button onClick={onLogout} className="w-full flex items-center justify-between px-4 py-3.5 text-red-600 hover:bg-red-50 rounded-xl text-sm font-black transition-all uppercase">
-                                <div className="flex items-center gap-3">
-                                  <LogOut size={20} />
-                                  <span>Sign Out</span>
-                                </div>
-                                <ArrowRight size={14}/>
-                            </button>
-                        </div>
-                    </div>
-                  )}
                 </div>
             </div>
         </header>
@@ -372,10 +317,6 @@ const App = () => {
     }
   };
 
-  const handleSetupComplete = () => {
-      setShowSetupModal(false);
-  };
-
   const wrapLayout = (element: React.ReactElement) => (
     <Router>
         <Routes>
@@ -384,11 +325,6 @@ const App = () => {
                 user ? (
                     <AppLayout user={user} onLogout={() => setUser(null)}>
                         {element}
-                        <FirstTimeSetupModal 
-                            isOpen={showSetupModal}
-                            user={user}
-                            onComplete={handleSetupComplete}
-                        />
                     </AppLayout>
                 ) : (
                     <>
@@ -413,6 +349,7 @@ const App = () => {
     <Routes>
       <Route path="/" element={
         user?.role === UserRole.ADMIN ? <AdminDashboard /> : 
+        user?.role === UserRole.PZ_REP ? <RepDashboard user={user} /> :
         user?.role === UserRole.CONSUMER ? <ConsumerDashboard user={user} /> : 
         user?.role === UserRole.GROCERY ? <GrocerDashboard user={user} /> :
         user ? <Dashboard user={user} /> : <Navigate to="/" />
@@ -433,79 +370,12 @@ const App = () => {
       <Route path="/pricing" element={user ? <ProductPricing user={user} /> : <Navigate to="/" />} />
       <Route path="/inventory" element={<Inventory items={mockService.getAllInventory()} />} />
       <Route path="/accounts" element={user ? <Accounts user={user} /> : <Navigate to="/" />} />
-      <Route path="/settings" element={user ? <SettingsComponent user={user} /> : <Navigate to="/" />} />
+      <Route path="/settings" element={user ? <SettingsComponent user={user} onRefreshUser={() => setUser(mockService.getAllUsers().find(u => u.id === user?.id) || null)} /> : <Navigate to="/" />} />
       <Route path="/orders" element={user ? <CustomerOrders user={user} /> : <Navigate to="/" />} />
       <Route path="/contacts" element={user ? <Contacts user={user} /> : <Navigate to="/" />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
-};
-
-const FirstTimeSetupModal = ({ isOpen, user, onComplete }: any) => {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [isSaving, setIsSaving] = useState(false);
-
-    if (!isOpen) return null;
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsSaving(true);
-        await new Promise(r => setTimeout(r, 1200));
-        mockService.updateUserCredentials(user.id, email);
-        setIsSaving(false);
-        onComplete();
-    };
-
-    return (
-        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-[#0F172A]/95 backdrop-blur-xl p-4">
-            <div className="bg-white rounded-[3rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-300">
-                <div className="p-10 border-b border-gray-100 bg-gray-50/50 flex flex-col items-center text-center">
-                    <div className="w-16 h-16 bg-indigo-600 rounded-[1.5rem] flex items-center justify-center text-white mb-6 shadow-xl shadow-indigo-200">
-                        <Lock size={28}/>
-                    </div>
-                    <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight leading-none mb-2">Secure Your Portal</h2>
-                    <p className="text-sm text-gray-500 font-medium">Assign a permanent email and password to replace your one-time access code.</p>
-                </div>
-                <form onSubmit={handleSubmit} className="p-10 space-y-6">
-                    <div className="space-y-4">
-                        <div className="relative group">
-                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-indigo-500 transition-colors" size={18}/>
-                            <input 
-                                required 
-                                type="email" 
-                                placeholder="Permanent Business Email"
-                                className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-gray-900 outline-none focus:ring-4 focus:ring-indigo-50/10 focus:bg-white transition-all"
-                                value={email}
-                                onChange={e => setEmail(e.target.value)}
-                            />
-                        </div>
-                        <div className="relative group">
-                            <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-indigo-500 transition-colors" size={18}/>
-                            <input 
-                                required 
-                                type="password" 
-                                placeholder="Create Secure Password"
-                                className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-gray-900 outline-none focus:ring-4 focus:ring-indigo-50/10 focus:bg-white transition-all"
-                                value={password}
-                                onChange={e => setPassword(e.target.value)}
-                            />
-                        </div>
-                    </div>
-                    <button 
-                        type="submit"
-                        disabled={isSaving || !email || !password}
-                        className="w-full py-5 bg-[#043003] text-white rounded-2xl font-black uppercase tracking-[0.2em] shadow-xl hover:bg-black transition-all flex items-center justify-center gap-3 disabled:opacity-50"
-                    >
-                        {isSaving ? <Loader2 className="animate-spin" size={24}/> : <><ShieldCheck size={20}/> Finalize Credentials</>}
-                    </button>
-                    <p className="text-[10px] text-center text-gray-400 font-bold uppercase tracking-widest leading-relaxed">
-                        By setting credentials, you agree to our Terms of Trade & Digital Platform Agreements.
-                    </p>
-                </form>
-            </div>
-        </div>
-    );
 };
 
 const AuthModal = ({ isOpen, onClose, onAutoLogin, onCodeLogin }: any) => {
@@ -530,6 +400,7 @@ const AuthModal = ({ isOpen, onClose, onAutoLogin, onCodeLogin }: any) => {
 
     const demoLogins = [
         { label: 'ADMIN HQ', email: 'admin@pz.com', color: 'bg-slate-50 border-slate-100 hover:bg-slate-100' },
+        { label: 'SALES REP', email: 'mark@rep.com', color: 'bg-indigo-50 border-indigo-100 hover:bg-indigo-100' },
         { label: 'WHOLESALER', email: 'sarah@fresh.com', color: 'bg-blue-50 border-blue-100 hover:bg-blue-100' },
         { label: 'FARMER', email: 'bob@greenvalley.com', color: 'bg-emerald-50 border-emerald-100 hover:bg-emerald-100' },
         { label: 'BUYER (CAFÉ)', email: 'alice@cafe.com', color: 'bg-indigo-50 border-indigo-100 hover:bg-indigo-100' },

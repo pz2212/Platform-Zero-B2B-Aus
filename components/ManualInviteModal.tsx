@@ -6,8 +6,7 @@ import {
   Sprout, Store, ShoppingCart, Briefcase, ShieldCheck, 
   ChevronRight, Smartphone as SmartphoneIcon,
   AlertTriangle,
-  Check,
-  Link as LinkIcon
+  Check
 } from 'lucide-react';
 import { UserRole } from '../types';
 import { mockService } from '../services/mockDataService';
@@ -22,6 +21,10 @@ interface ManualInviteModalProps {
 const ROLE_CONFIG = [
   { id: UserRole.FARMER, label: 'FARMER', icon: Sprout, color: 'text-emerald-500', bg: 'bg-emerald-50' },
   { id: UserRole.WHOLESALER, label: 'WHOLESALER', icon: Building, color: 'text-indigo-500', bg: 'bg-indigo-50' },
+  { id: UserRole.GROCERY, label: 'GROCER', icon: Store, color: 'text-orange-500', bg: 'bg-orange-50' },
+  { id: UserRole.CONSUMER, label: 'MARKETPLACE', icon: ShoppingCart, color: 'text-blue-500', bg: 'bg-blue-50' },
+  { id: UserRole.PZ_REP, label: 'SALES REP', icon: Briefcase, color: 'text-slate-500', bg: 'bg-slate-50' },
+  { id: UserRole.ADMIN, label: 'PZ ADMIN', icon: ShieldCheck, color: 'text-indigo-600', bg: 'bg-indigo-50' },
 ];
 
 export const ManualInviteModal: React.FC<ManualInviteModalProps> = ({ isOpen, onClose }) => {
@@ -35,7 +38,7 @@ export const ManualInviteModal: React.FC<ManualInviteModalProps> = ({ isOpen, on
     lastName: '',
     email: '',
     mobile: '',
-    role: UserRole.WHOLESALER // Defaulting to Wholesaler for Supplier Market context
+    role: UserRole.CONSUMER
   });
 
   if (!isOpen) return null;
@@ -64,7 +67,7 @@ export const ManualInviteModal: React.FC<ManualInviteModalProps> = ({ isOpen, on
         return;
     }
     const appUrl = window.location.origin + window.location.pathname + '#login';
-    const message = `Hey ${formData.firstName}! I'd like to connect with you on Platform Zero to trade fresh produce. Your access code is: ${generatedCode}. Join me here: ${appUrl}`;
+    const message = `PZ INVITE: Hi ${formData.firstName} ! You've been invited to Platform Zero. Your unique access code is: ${generatedCode}. Log in at ${appUrl} to finish your onboarding.`;
     triggerNativeSms(formData.mobile, message);
   };
 
@@ -78,7 +81,7 @@ export const ManualInviteModal: React.FC<ManualInviteModalProps> = ({ isOpen, on
     const context = {
         inviteCode: generatedCode,
         loginUrl: window.location.origin + window.location.pathname + '#login',
-        onboardingTask: 'Network Connection Inquiry'
+        onboardingTask: 'Business Document Verification'
     };
 
     await emailService.sendSmartEmail(
@@ -184,19 +187,19 @@ export const ManualInviteModal: React.FC<ManualInviteModalProps> = ({ isOpen, on
                 <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] flex items-center gap-2">
                     <ShieldCheck size={14} className="text-gray-300"/> SELECT PORTAL ACCESS
                 </h3>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {ROLE_CONFIG.map(role => (
                         <button 
                             key={role.id}
                             type="button"
                             onClick={() => setFormData({...formData, role: role.id})}
-                            className={`p-8 rounded-[1.75rem] border-2 transition-all flex flex-col items-center gap-4 group relative ${formData.role === role.id ? 'bg-indigo-600 border-indigo-600 text-white shadow-xl shadow-indigo-200' : 'bg-white border-gray-100 text-gray-400 hover:border-indigo-100 hover:text-indigo-600'}`}
+                            className={`p-6 rounded-[1.75rem] border-2 transition-all flex flex-col items-center gap-3 group relative ${formData.role === role.id ? 'bg-indigo-600 border-indigo-600 text-white shadow-xl shadow-indigo-200' : 'bg-white border-gray-100 text-gray-400 hover:border-indigo-100 hover:text-indigo-600'}`}
                         >
-                            <role.icon size={32} strokeWidth={2.5} className={formData.role === role.id ? 'text-white' : role.color} />
-                            <span className="text-xs font-black uppercase tracking-widest">{role.label}</span>
+                            <role.icon size={24} strokeWidth={2.5} className={formData.role === role.id ? 'text-white' : role.color} />
+                            <span className="text-[10px] font-black uppercase tracking-widest">{role.label}</span>
                             {formData.role === role.id && (
-                                <div className="absolute top-3 right-3 bg-white text-indigo-600 p-1.5 rounded-full shadow-sm animate-in zoom-in duration-300">
-                                    <Check size={12} strokeWidth={4}/>
+                                <div className="absolute top-2 right-2 bg-white text-indigo-600 p-1 rounded-full shadow-sm animate-in zoom-in duration-300">
+                                    <Check size={10} strokeWidth={4}/>
                                 </div>
                             )}
                         </button>
@@ -236,7 +239,7 @@ export const ManualInviteModal: React.FC<ManualInviteModalProps> = ({ isOpen, on
                         onClick={handleSendSms}
                         className="py-5 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-emerald-700 transition-all active:scale-95 flex items-center justify-center gap-3"
                     >
-                        <SmartphoneIcon size={20}/> Send SMS Invite
+                        <SmartphoneIcon size={20}/> Dispatch via SMS
                     </button>
                     <button 
                         onClick={handleSendEmail}
@@ -244,7 +247,7 @@ export const ManualInviteModal: React.FC<ManualInviteModalProps> = ({ isOpen, on
                         className="py-5 bg-[#0F172A] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-black transition-all active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50"
                     >
                         {isSubmitting ? <Loader2 className="animate-spin" size={20}/> : <Mail size={20}/>}
-                        Send Email Invite
+                        Dispatch via Email
                     </button>
                 </div>
              </div>
@@ -254,7 +257,7 @@ export const ManualInviteModal: React.FC<ManualInviteModalProps> = ({ isOpen, on
                     onClick={onClose}
                     className="w-full py-5 bg-gray-100 text-gray-400 border border-gray-200 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-gray-200 transition-all"
                 >
-                    Return to Market
+                    Return to Control Center
                 </button>
                 <button 
                     onClick={() => { setStep('FORM'); setGeneratedCode(''); }}

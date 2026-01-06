@@ -9,6 +9,10 @@ export enum UserRole {
   GROCERY = 'GROCERY'
 }
 
+export type AuState = 'VIC' | 'NSW' | 'SA' | 'QLD' | 'WA' | 'TAS' | 'NT' | 'ACT';
+
+export type LeadStatus = 'DISCOVERY' | 'ENGAGEMENT' | 'PROPOSAL' | 'CLOSING' | 'ONBOARDED';
+
 export type Industry = 
   | 'Cafe' 
   | 'Restaurant' 
@@ -84,9 +88,7 @@ export interface User {
   favoriteProductIds?: string[];
   isConfirmed?: boolean;
   hasSetCredentials?: boolean;
-  // Stripe Integration Fields
-  stripeAccountId?: string;
-  isStripeConnected?: boolean;
+  directorName?: string;
 }
 
 export type ProductUnit = 'KG' | 'Tray' | 'Bin' | 'Tonne' | 'loose' | 'Each' | 'Bag';
@@ -129,14 +131,22 @@ export interface InventoryItem {
   warehouseLocation?: string; 
   discountAfterDays?: number;
   discountPricePerKg?: number;
-  minOrderQuantity?: number;
   batchImageUrl?: string;
   lastPriceVerifiedDate?: string;
   notes?: string;
   logisticsPrice?: number;
-  logisticsPricePerKg?: number;
-  minLogisticsKg?: number;
-  isPublicMarketplace?: boolean;
+}
+
+export interface ClearanceLot {
+  id: string;
+  productId: string;
+  sellerId: string;
+  marketplaceRate: number;
+  minOrderKg: number;
+  logisticsRate: number;
+  minLogisticsWeight: number;
+  timestamp: string;
+  status: 'ACTIVE' | 'SOLD' | 'EXPIRED';
 }
 
 export interface OrderItem {
@@ -182,7 +192,14 @@ export interface Order {
   paymentMethod?: 'pay_now' | 'invoice' | 'amex';
   priority?: 'STANDARD' | 'HIGH' | 'URGENT';
   packedAt?: string;
-  logistics?: {
+  logistics?: LogisticsDetails;
+  issue?: OrderIssue;
+  itemIssues?: OrderIssue[];
+  isFullyVerified?: boolean;
+  source?: 'Marketplace' | 'Direct';
+}
+
+export interface LogisticsDetails {
     driverName?: string;
     deliveryTime?: string;
     deliveryLocation?: string;
@@ -190,11 +207,7 @@ export interface Order {
     vehicleDetails?: string;
     deliveryPhoto?: string;
     instructions?: string;
-  };
-  issue?: OrderIssue;
-  itemIssues?: OrderIssue[];
-  isFullyVerified?: boolean;
-  source?: 'Marketplace' | 'Direct';
+    method?: 'PICKUP' | 'LOGISTICS';
 }
 
 export interface Customer {
@@ -224,6 +237,21 @@ export interface Customer {
   inventoryTier?: 'PLATINUM' | 'GOLD' | 'SILVER';
 }
 
+export interface Lead {
+  id: string;
+  businessName: string;
+  contactName: string;
+  email: string;
+  phone: string;
+  status: LeadStatus;
+  state: AuState;
+  potentialRevenue: number;
+  assignedRepId?: string;
+  assignedRepName?: string;
+  timestamp: string;
+  suburb?: string;
+}
+
 export interface SupplierPriceRequestItem {
   productId: string;
   productName: string;
@@ -244,30 +272,10 @@ export interface SupplierPriceRequest {
   items: SupplierPriceRequestItem[];
 }
 
-export interface ProcurementRequest {
-  id: string;
-  buyerId: string;
-  buyerName: string;
-  supplierId: string;
-  productId: string;
-  productName: string;
-  quantity: number;
-  unit: ProductUnit;
-  requiredDate: string;
-  requiredTime: string;
-  status: 'PENDING' | 'QUOTED' | 'ACCEPTED' | 'REJECTED';
-  timestamp: string;
-  offeredPrice?: number;
-}
-
 export interface PricingRule {
   id: string;
-  ownerId: string;
   productId: string;
-  category: string;
-  strategy: 'FIXED' | 'PERCENTAGE_DISCOUNT';
-  value: number;
-  isActive: boolean;
+  markup: number;
 }
 
 export interface Driver {
@@ -291,19 +299,6 @@ export interface Packer {
   status: 'Active' | 'Inactive';
 }
 
-export interface LogisticsDetails {
-  method: 'PICKUP' | 'LOGISTICS';
-  deliveryDate?: string;
-  deliveryTime?: string;
-  deliveryLocation?: string;
-}
-
-export interface OnboardingFormTemplate {
-  id: string;
-  role: UserRole;
-  sections: any[];
-}
-
 export interface RegistrationRequest {
   id: string;
   businessName: string;
@@ -322,13 +317,24 @@ export interface RegistrationRequest {
   };
 }
 
-export interface Lead {
+export interface OnboardingFormTemplate {
   id: string;
-  businessName: string;
-  contactName: string;
-  email?: string;
-  phone?: string;
-  location: string;
-  source: 'AI_SCAN' | 'MANUAL' | 'REFERRAL';
-  status: 'NEW' | 'CONTACTED' | 'QUOTED' | 'CONVERTED';
+  name: string;
+  fields: any[];
+}
+
+export interface ProcurementRequest {
+  id: string;
+  buyerId: string;
+  buyerName: string;
+  supplierId: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  unit: string;
+  requiredDate: string;
+  requiredTime: string;
+  status: 'PENDING' | 'QUOTED' | 'ACCEPTED' | 'REJECTED';
+  timestamp: string;
+  offeredPrice?: number;
 }

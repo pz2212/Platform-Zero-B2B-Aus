@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
-import { User, Order, Product, InventoryItem, ProcurementRequest } from '../types';
+import { User, Order, Product, InventoryItem, ProcurementRequest, Packer, Driver } from '../types';
 import { mockService } from '../services/mockDataService';
 import { 
   Package, Truck, DollarSign, Activity, ShoppingCart, 
@@ -7,10 +8,7 @@ import {
   LayoutGrid, History, Globe, MapPin, 
   TrendingUp, AlertTriangle, List, 
   X, Plus, Zap, Bell, Loader2, Send, Handshake, Info, Calendar, Timer,
-  Store, ArrowRight, ArrowLeft, MessageSquare, CreditCard,
-  FileText,
-  // Added User as UserIcon to resolve missing reference on line 44
-  User as UserIcon
+  Store, ArrowRight, ArrowLeft, MessageSquare, Printer, Check
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -18,110 +16,147 @@ interface DashboardProps {
   user: User;
 }
 
-const FulfillmentOrderDetailsModal = ({ isOpen, onClose, order, products, onAccept, isAccepting }: any) => {
+const OrderManifestModal = ({ isOpen, onClose, order, products, allUsers, onComplete }: any) => {
+    const [selectedPackerId, setSelectedPackerId] = useState('');
+    const [selectedDriverId, setSelectedDriverId] = useState('');
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [packers, setPackers] = useState<Packer[]>([]);
+    const [drivers, setDrivers] = useState<Driver[]>([]);
+
+    useEffect(() => {
+        if (isOpen && order) {
+            setPackers(mockService.getPackers(order.sellerId));
+            setDrivers(mockService.getDrivers(order.sellerId));
+        }
+    }, [isOpen, order]);
+
     if (!isOpen || !order) return null;
 
-    const buyer = mockService.getCustomers().find(c => c.id === order.buyerId) || { businessName: 'Wholesale Client', location: 'Delivery Address Not Set' };
+    const buyer = mockService.getCustomers().find(c => c.id === order.buyerId);
     
+    const handleFinalize = async () => {
+        if (!selectedPackerId) {
+            alert("Please assign a packing team member.");
+            return;
+        }
+        setIsProcessing(true);
+        // Simulate logistics workflow
+        await new Promise(r => setTimeout(r, 1500));
+        mockService.acceptOrderV2(order.id);
+        if (selectedPackerId) {
+            const packer = packers.find(p => p.id === selectedPackerId);
+            mockService.packOrder(order.id, packer?.name || 'Team Member');
+        }
+        setIsProcessing(false);
+        onComplete();
+        onClose();
+    };
+
     return (
-        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
-            <div className="bg-white rounded-[3.5rem] shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
-                <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg">
-                            <ShoppingCart size={24} />
+        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/40 backdrop-blur-md p-4 animate-in fade-in duration-300">
+            <div className="bg-white rounded-[3.5rem] shadow-2xl w-full max-w-4xl overflow-hidden animate-in zoom-in-95 duration-200 border-2 border-white/50">
+                <div className="p-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                    <div className="flex items-center gap-6">
+                        <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 font-black text-4xl shadow-inner-sm">
+                            {buyer?.businessName.charAt(0) || 'T'}
                         </div>
                         <div>
-                            <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight leading-none">Order Manifest</h2>
-                            <p className="text-[10px] text-indigo-500 font-black uppercase tracking-widest mt-1.5">ID: #{order.id.split('-').pop()} • Status: {order.status}</p>
-                        </div>
-                    </div>
-                    <button onClick={onClose} className="text-gray-300 hover:text-gray-900 p-2 bg-white rounded-full border border-gray-100 shadow-sm transition-all"><X size={24} strokeWidth={2.5}/></button>
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-10 space-y-10 custom-scrollbar">
-                    {/* Buyer Info */}
-                    <div className="bg-gray-50 rounded-[2.5rem] p-8 border border-gray-100 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-6 opacity-[0.03] transform rotate-12 scale-150"><UserIcon size={100}/></div>
-                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
-                            <Store size={16} className="text-indigo-500"/> CUSTOMER IDENTITY
-                        </h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                            <div>
-                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Business Name</p>
-                                <p className="font-black text-gray-900 text-lg uppercase tracking-tight">{buyer.businessName}</p>
-                            </div>
-                            <div>
-                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Delivery Destination</p>
-                                <p className="font-bold text-gray-700 text-sm leading-snug">{order.logistics?.deliveryLocation || buyer.location}</p>
+                            <h2 className="text-3xl font-black text-gray-900 tracking-tighter uppercase leading-none">{buyer?.businessName || 'THE MORNING CAFE'}</h2>
+                            <div className="flex items-center gap-4 mt-3">
+                                <span className="bg-orange-50 text-orange-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-orange-100 shadow-sm">PENDING</span>
+                                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest flex items-center gap-1.5">
+                                    <Clock size={14}/> LOGGED: {new Date(order.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false})}
+                                </span>
                             </div>
                         </div>
                     </div>
-
-                    {/* Logistics Status */}
-                    <div className="space-y-6">
-                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                            <Truck size={16} className="text-emerald-500"/> FULFILLMENT LOGISTICS
-                        </h4>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100">
-                                <span className="text-[9px] font-black text-indigo-400 uppercase block mb-1">Requested Delivery</span>
-                                <p className="font-black text-gray-900 text-sm">{order.logistics?.deliveryDate || 'ASAP'}</p>
-                            </div>
-                            <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100">
-                                <span className="text-[9px] font-black text-indigo-400 uppercase block mb-1">Target Window</span>
-                                <p className="font-black text-gray-900 text-sm">{order.logistics?.deliveryTime || 'Standard Morning'}</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Items Table */}
-                    <div className="space-y-4">
-                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                            <Package size={16} className="text-orange-500"/> LINE ITEMS
-                        </h4>
-                        <div className="divide-y divide-gray-100 border border-gray-100 rounded-[2rem] overflow-hidden bg-white shadow-sm">
-                            {order.items.map((item: any, idx: number) => {
-                                const p = products.find((prod: any) => prod.id === item.productId);
-                                return (
-                                    <div key={idx} className="p-5 flex items-center justify-between hover:bg-gray-50 transition-all group">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-xl overflow-hidden border border-gray-100 shrink-0">
-                                                <img src={p?.imageUrl} className="w-full h-full object-cover" />
-                                            </div>
-                                            <div>
-                                                <p className="font-black text-gray-900 text-sm uppercase tracking-tight">{p?.name || 'Produce Item'}</p>
-                                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{p?.variety || 'Standard'}</p>
-                                            </div>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="font-black text-gray-900 text-base tracking-tighter">{item.quantityKg}{p?.unit || 'kg'}</p>
-                                            <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">${item.pricePerKg.toFixed(2)} / unit</p>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </div>
-
-                <div className="p-8 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between gap-8">
-                    <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Trade Total</p>
-                        <h3 className="text-4xl font-black text-gray-900 tracking-tighter">${order.totalAmount.toFixed(2)}</h3>
-                    </div>
-                    <div className="flex gap-3">
-                        <button onClick={onClose} className="px-8 py-4 bg-white border border-gray-200 text-gray-400 hover:text-gray-900 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all">Close</button>
-                        {order.status === 'Pending' && (
+                    
+                    <div className="text-right">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">TRADE TOTAL</p>
+                        <div className="flex items-center gap-8">
+                            <h3 className="text-5xl font-black text-gray-900 tracking-tighter">${order.totalAmount.toFixed(2)}</h3>
                             <button 
-                                onClick={() => onAccept(order.id)}
-                                disabled={isAccepting}
-                                className="px-12 py-4 bg-[#043003] hover:bg-black text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl transition-all flex items-center gap-2"
+                                onClick={() => mockService.acceptOrderV2(order.id)}
+                                className="px-10 py-5 bg-[#043003] text-white rounded-[1.75rem] font-black text-xs uppercase tracking-[0.2em] shadow-xl hover:bg-black transition-all active:scale-95"
                             >
-                                {isAccepting ? <Loader2 size={16} className="animate-spin"/> : 'Accept Order'}
+                                ACCEPT ORDER
                             </button>
-                        )}
+                        </div>
                     </div>
+                </div>
+
+                <div className="p-10 pt-4 border-t border-gray-100 flex flex-col md:flex-row gap-12">
+                    {/* LEFT SIDE: MANIFEST */}
+                    <div className="flex-1 space-y-6">
+                        <h4 className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.3em] flex items-center gap-2">
+                            <Package size={14}/> ORDER MANIFEST
+                        </h4>
+                        <div className="bg-gray-50/50 rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-inner-sm">
+                            <table className="w-full text-left">
+                                <thead className="bg-white border-b border-gray-100 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                    <tr>
+                                        <th className="px-8 py-4">ITEM</th>
+                                        <th className="px-8 py-4 text-center">QTY</th>
+                                        <th className="px-8 py-4 text-right">PRICE</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50">
+                                    {order.items.map((item: any, idx: number) => {
+                                        const p = products.find((prod: any) => prod.id === item.productId);
+                                        return (
+                                            <tr key={idx} className="bg-white/40">
+                                                <td className="px-8 py-5 font-black text-gray-900 text-xs uppercase">{p?.name || 'PRODUCE'}</td>
+                                                <td className="px-8 py-5 text-center font-black text-gray-900 text-xs uppercase">{item.quantityKg}kg</td>
+                                                <td className="px-8 py-5 text-right font-black text-gray-900 text-xs uppercase">${(item.quantityKg * item.pricePerKg).toFixed(2)}</td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* RIGHT SIDE: ASSIGNMENT */}
+                    <div className="w-full md:w-[380px] space-y-8">
+                        <div className="space-y-6">
+                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">ASSIGN PACKING</h4>
+                            <div className="relative group">
+                                <div className="absolute inset-0 bg-indigo-500/10 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                <div className="relative">
+                                    <div className="absolute left-5 top-1/2 -translate-y-1/2 text-white bg-gray-400 rounded-lg p-1.5">
+                                        <Check size={16} strokeWidth={3}/>
+                                    </div>
+                                    <select 
+                                        value={selectedPackerId}
+                                        onChange={e => setSelectedPackerId(e.target.value)}
+                                        className="w-full pl-14 pr-6 py-5 bg-[#52525B] text-white border-2 border-indigo-300 rounded-[1.5rem] font-black text-[11px] uppercase tracking-widest outline-none focus:ring-4 focus:ring-indigo-500/20 transition-all appearance-none"
+                                    >
+                                        <option value="">SELECT TEAM MEMBER...</option>
+                                        {packers.map(p => <option key={p.id} value={p.id} className="text-gray-900">{p.name}</option>)}
+                                        <option value="temp-1" className="text-gray-900">MICKY (WAREHOUSE)</option>
+                                        <option value="temp-2" className="text-gray-900">JOSH (CREW LEAD)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-4">
+                            <button className="flex-1 py-5 bg-white border-2 border-gray-100 text-gray-900 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-sm hover:bg-gray-50 transition-all flex items-center justify-center gap-2 active:scale-95">
+                                <Printer size={18}/> PRINT SLIP
+                            </button>
+                            <button 
+                                onClick={handleFinalize}
+                                disabled={isProcessing}
+                                className="flex-1 py-5 bg-indigo-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl shadow-indigo-100 hover:bg-black transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50"
+                            >
+                                {isProcessing ? <Loader2 className="animate-spin" size={18}/> : <><Truck size={18}/> FINALIZE</>}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="p-4 bg-gray-50/50 flex justify-end">
+                    <button onClick={onClose} className="text-[10px] font-black text-gray-300 uppercase tracking-[0.3em] hover:text-red-500 transition-colors">Discard manifest</button>
                 </div>
             </div>
         </div>
@@ -190,7 +225,7 @@ const ProcurementModal = ({ isOpen, onClose, product, user, allInventory, allUse
                 <div className="flex-1 overflow-y-auto p-10 space-y-10 custom-scrollbar">
                     <section className="space-y-4">
                         <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] flex items-center gap-2">
-                            <Store size={14}/> 1. Select Live Supply Source
+                            <Store size={14} /> 1. Select Live Supply Source
                         </h3>
                         <div className="grid grid-cols-1 gap-3">
                             {availableSuppliers.length === 0 ? (
@@ -240,6 +275,15 @@ const ProcurementModal = ({ isOpen, onClose, product, user, allInventory, allUse
                                     className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-sm outline-none focus:bg-white"
                                     value={date}
                                     onChange={e => setDate(e.target.value)}
+                                />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Preferred Time Window</label>
+                                <input 
+                                    className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-sm outline-none focus:bg-white"
+                                    value={time}
+                                    onChange={e => setTime(e.target.value)}
+                                    placeholder="e.g. 8:00 AM - 10:00 AM"
                                 />
                             </div>
                         </div>
@@ -329,13 +373,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const [activePipelineTab, setActivePipelineTab] = useState<'INCOMING' | 'PROCESSING' | 'ACTIVE_RUNS' | 'HISTORY'>('INCOMING');
   const [procurementRequests, setProcurementRequests] = useState<ProcurementRequest[]>([]);
   
+  // Modal States
   const [isAcceptingId, setIsAcceptingId] = useState<string | null>(null);
   const [selectedProductForProcurement, setSelectedProductForProcurement] = useState<Product | null>(null);
+  const [selectedOrderForManifest, setSelectedOrderForManifest] = useState<Order | null>(null);
   const [quotingRequestId, setQuotingRequestId] = useState<string | null>(null);
   const [quotePrice, setQuotePrice] = useState('');
-
-  // Added state for viewing an order in detail
-  const [selectedOrderForView, setSelectedOrderForView] = useState<Order | null>(null);
 
   useEffect(() => {
     loadData();
@@ -427,20 +470,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       {/* HEADER SECTION */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 px-2">
         <div>
-          <div className="flex items-center gap-4 mb-2">
-            <h1 className="text-[44px] font-black text-slate-900 tracking-tighter uppercase leading-none">Partner Operations</h1>
-            {user.isStripeConnected && (
-                <div className="flex items-center gap-2 px-3 py-1 bg-indigo-50 border border-indigo-100 rounded-full text-indigo-600 animate-in zoom-in duration-500">
-                    <CreditCard size={12} strokeWidth={3}/>
-                    <span className="text-[8px] font-black uppercase tracking-widest">Stripe Connected</span>
-                </div>
-            )}
-          </div>
+          <h1 className="text-[44px] font-black text-slate-900 tracking-tighter uppercase leading-none">Partner Operations</h1>
           <div className="flex items-center gap-4 mt-2">
              <p className="text-gray-400 font-bold text-xs uppercase tracking-[0.2em]">Management Console <span className="mx-2 text-gray-200">•</span> {user.businessName}</p>
              <div className="flex bg-gray-100 p-1 rounded-xl gap-1 border border-gray-200 shadow-inner-sm">
-                <button onClick={() => setActiveTab('OPERATIONS')} className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === 'OPERATIONS' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>Ops View</button>
-                <button onClick={() => setActiveTab('PROCUREMENT')} className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${activeTab === 'PROCUREMENT' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400 hover:text-indigo-600'}`}>
+                <button onClick={() => setActiveTab('OPERATIONS')} className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${setActiveTab === 'OPERATIONS' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>Ops View</button>
+                <button onClick={() => setActiveTab('PROCUREMENT')} className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${setActiveTab === 'PROCUREMENT' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400 hover:text-indigo-600'}`}>
                     Procurement Hub {procurementRequests.filter(r => r.supplierId === user.id && r.status === 'PENDING').length > 0 && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>}
                 </button>
              </div>
@@ -457,6 +492,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
       {activeTab === 'OPERATIONS' ? (
           <>
+            {/* KPI TOP BAR */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 px-2">
                 {[
                 { label: 'Orders Today', value: stats.ordersToday, icon: Activity, color: 'text-blue-500', bg: 'bg-blue-50' },
@@ -476,7 +512,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 ))}
             </div>
 
+            {/* MAIN DASHBOARD GRID */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 px-2">
+                
+                {/* LEFT COLUMN: DEMAND MATRIX */}
                 <div className="lg:col-span-4 space-y-6">
                 <div className="bg-white/50 backdrop-blur-md rounded-[3rem] border border-gray-100 p-8 flex flex-col gap-10 h-full shadow-sm">
                     <div className="flex items-center gap-5">
@@ -508,6 +547,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 </div>
                 </div>
 
+                {/* RIGHT COLUMN: FULFILLMENT PIPELINE */}
                 <div className="lg:col-span-8">
                 <div className="bg-white rounded-[3.5rem] border border-gray-100 shadow-sm overflow-hidden flex flex-col min-h-[700px]">
                     <div className="p-10 border-b border-gray-100 flex flex-col xl:flex-row justify-between items-center gap-8 bg-gray-50/40">
@@ -521,6 +561,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                         </div>
                     </div>
 
+                    {/* PIPELINE TABS */}
                     <div className="bg-gray-100/90 p-1.5 rounded-[2rem] flex gap-1 border border-gray-200 shadow-inner-sm overflow-x-auto no-scrollbar">
                         {[
                         { id: 'INCOMING', label: 'INCOMING', icon: Bell, count: orders.filter(o => o.status === 'Pending').length },
@@ -536,7 +577,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                             <tab.icon size={16} />
                             {tab.label}
                             {tab.count !== undefined && tab.count > 0 && (
-                            <span className="bg-blue-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black shadow-lg shadow-blue-200">{tab.count}</span>
+                            <span className="bg-blue-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shadow-lg shadow-blue-200">{tab.count}</span>
                             )}
                         </button>
                         ))}
@@ -556,11 +597,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                         const isAccepting = isAcceptingId === order.id;
 
                         return (
-                        <div 
-                          key={order.id} 
-                          onClick={() => setSelectedOrderForView(order)}
-                          className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm hover:shadow-2xl transition-all flex flex-col md:flex-row justify-between items-center gap-8 group animate-in slide-in-from-top-4 duration-500 cursor-pointer"
-                        >
+                        <div key={order.id} onClick={() => setSelectedOrderForManifest(order)} className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm hover:shadow-2xl transition-all flex flex-col md:flex-row justify-between items-center gap-8 group animate-in slide-in-from-top-4 duration-500 cursor-pointer">
                             <div className="flex items-center gap-8">
                             <div className="w-16 h-16 bg-indigo-50 rounded-3xl flex items-center justify-center text-indigo-700 font-black text-2xl shadow-inner-sm uppercase border border-indigo-100/50 group-hover:scale-105 transition-transform">
                                 {buyer?.businessName.charAt(0) || 'U'}
@@ -592,7 +629,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                             
                             {order.status === 'Confirmed' && (
                                 <button 
-                                    onClick={(e) => { e.stopPropagation(); navigate('/settings'); }}
+                                    onClick={(e) => { e.stopPropagation(); setSelectedOrderForManifest(order); }}
                                     className="px-10 py-4 bg-white border-2 border-indigo-600 text-indigo-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-50 transition-all flex items-center gap-2"
                                 >
                                     Assign Crew <ChevronRight size={14}/>
@@ -611,6 +648,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       ) : (
           <div className="px-2 animate-in slide-in-from-right-10 duration-700">
              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                {/* MY PROCUREMENT REQUESTS (Buying role) */}
                 <div className="bg-white rounded-[3rem] border border-gray-100 shadow-sm overflow-hidden flex flex-col min-h-[600px]">
                     <div className="p-8 border-b border-gray-100 bg-emerald-50/20 flex justify-between items-center">
                         <div className="flex items-center gap-5">
@@ -661,7 +699,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                                             </div>
                                             <button 
                                                 onClick={() => handleAcceptQuote(req.id)}
-                                                className="w-full py-4 bg-indigo-600 hover:bg-black text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl transition-all active:scale-95"
+                                                className="w-full py-4 bg-indigo-600 hover:bg-black text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl transition-all active:scale-95"
                                             >
                                                 Accept & Confirm Trade
                                             </button>
@@ -673,6 +711,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     </div>
                 </div>
 
+                {/* INBOUND SOURCING REQUESTS (Supplier role) */}
                 <div className="bg-white rounded-[3rem] border border-gray-100 shadow-sm overflow-hidden flex flex-col min-h-[600px]">
                     <div className="p-8 border-b border-gray-100 bg-indigo-50/20 flex justify-between items-center">
                         <div className="flex items-center gap-5">
@@ -732,11 +771,49 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                                                     />
                                                 </div>
                                                 <div className="flex gap-2">
-                                                    <button onClick={() => setQuotingRequestId(null)} className="flex-1 py-3 bg-white border border-gray-200 text-slate-400 rounded-xl text-[10px] font-black uppercase tracking-widest">Cancel</button>
+                                                    <button onClick={() => setQuotingRequestId(null)} className="flex-1 py-3 bg-white border border-gray-200 text-gray-400 rounded-xl text-[10px] font-black uppercase tracking-widest">Cancel</button>
                                                     <button onClick={() => handleSendQuote(req.id)} className="flex-[2] py-3 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg">Submit Quote</button>
                                                 </div>
                                             </div>
                                         ) : (
                                             <button 
                                                 onClick={() => setQuotingRequestId(req.id)}
-                                                className="w-full py-4 bg-white border-2 border-indigo
+                                                className="w-full py-4 bg-white border-2 border-indigo-600 text-indigo-600 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-sm hover:bg-indigo-50 transition-all flex items-center justify-center gap-2"
+                                            >
+                                                <DollarSign size={16}/> Provide Price Quote
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+             </div>
+          </div>
+      )}
+
+      {/* PROCUREMENT MODAL */}
+      <ProcurementModal 
+        isOpen={!!selectedProductForProcurement}
+        onClose={() => setSelectedProductForProcurement(null)}
+        product={selectedProductForProcurement}
+        user={user}
+        allInventory={mockService.getAllInventory()}
+        allUsers={mockService.getAllUsers()}
+        onComplete={loadData}
+      />
+
+      {/* ORDER MANIFEST MODAL */}
+      <OrderManifestModal 
+        isOpen={!!selectedOrderForManifest}
+        onClose={() => setSelectedOrderForManifest(null)}
+        order={selectedOrderForManifest}
+        products={products}
+        allUsers={mockService.getAllUsers()}
+        onComplete={loadData}
+      />
+
+    </div>
+  );
+};

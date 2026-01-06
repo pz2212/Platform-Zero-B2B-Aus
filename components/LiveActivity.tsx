@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Truck, Package, CheckCircle2, X, MapPin, Sprout, Building2, Bell, ShieldCheck, ShoppingCart, Info, Check, TrendingUp, ArrowRight } from 'lucide-react';
+import { Truck, Package, CheckCircle2, X, MapPin, Sprout, Building2, Bell, ShieldCheck, ShoppingCart, Info, Check } from 'lucide-react';
 import { AppNotification, User, UserRole } from '../types';
 
 interface LiveActivityProps {
@@ -108,3 +108,11 @@ export const LiveActivity: React.FC<LiveActivityProps> = ({ notification, user, 
     </div>
   );
 };
+
+const TrendingUp = ({ size = 24, ...props }: any) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...props}><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+);
+
+const ArrowRight = ({ size = 24, ...props }: any) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+);

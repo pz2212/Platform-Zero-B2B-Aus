@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { 
   X, UserPlus, ShieldCheck, Mail, Smartphone, 
   Building, CreditCard, FileText, ChevronRight, 
-  Copy, Send, Sparkles, CheckCircle2, Loader2, Tags, ChevronDown
+  Copy, Send, Sparkles, CheckCircle2, Loader2
 } from 'lucide-react';
 import { User, UserRole } from '../types';
 import { mockService } from '../services/mockDataService';
@@ -17,14 +17,6 @@ interface InviteBuyerModalProps {
 
 const TERM_OPTIONS = ['COB', '7 Days', '14 Days', '30 Days'];
 
-const PRICING_TIERS = [
-  { label: 'Tier 1 (30% Markup)', value: 30 },
-  { label: 'Tier 2 (25% Markup)', value: 25 },
-  { label: 'Tier 3 (20% Markup)', value: 20 },
-  { label: 'Tier 4 (15% Markup)', value: 15 },
-  { label: 'Tier 5 (10% Markup)', value: 10 },
-];
-
 export const InviteBuyerModal: React.FC<InviteBuyerModalProps> = ({ isOpen, onClose, wholesaler }) => {
   const [step, setStep] = useState<'form' | 'success'>('form');
   const [isLoading, setIsLoading] = useState(false);
@@ -36,15 +28,13 @@ export const InviteBuyerModal: React.FC<InviteBuyerModalProps> = ({ isOpen, onCl
     phone: '',
     email: '',
     paymentTerms: '7 Days',
-    customTerms: '',
-    markup: 15 // Default to Tier 4
+    customTerms: ''
   });
 
   if (!isOpen) return null;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const value = e.target.name === 'markup' ? parseFloat(e.target.value) : e.target.value;
-    setFormData(prev => ({ ...prev, [e.target.name]: value }));
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleGenerateInvite = async (e: React.FormEvent) => {
@@ -62,8 +52,7 @@ export const InviteBuyerModal: React.FC<InviteBuyerModalProps> = ({ isOpen, onCl
         mobile: formData.phone,
         role: UserRole.CONSUMER,
         paymentTerms: formData.paymentTerms,
-        customTerms: formData.customTerms,
-        markup: formData.markup
+        customTerms: formData.customTerms
       });
       
       setGeneratedRequestId(request.id);
@@ -99,7 +88,7 @@ export const InviteBuyerModal: React.FC<InviteBuyerModalProps> = ({ isOpen, onCl
               <UserPlus size={24} />
             </div>
             <div>
-              <h2 className="text-2xl font-black text-[#0F172A] tracking-tight leading-none uppercase">Provision Customer Portal</h2>
+              <h2 className="text-2xl font-black text-[#0F172A] tracking-tight leading-none uppercase">Provision Buyer Portal</h2>
               <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em] mt-1">Direct Wholesaler-to-Buyer Invitation</p>
             </div>
           </div>
@@ -115,7 +104,7 @@ export const InviteBuyerModal: React.FC<InviteBuyerModalProps> = ({ isOpen, onCl
             <section className="space-y-6">
               <div className="flex items-center gap-3 text-gray-900 mb-6">
                 <div className="w-1.5 h-6 bg-indigo-500 rounded-full"></div>
-                <h3 className="font-black uppercase text-sm tracking-widest">Customer Contact Details</h3>
+                <h3 className="font-black uppercase text-sm tracking-widest">Buyer Contact Details</h3>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -150,46 +139,26 @@ export const InviteBuyerModal: React.FC<InviteBuyerModalProps> = ({ isOpen, onCl
               </div>
             </section>
 
-            {/* SECTION 2: TERMS & PRICING */}
-            <section className="bg-indigo-50/30 p-8 rounded-[2.5rem] border border-indigo-100/50 space-y-8">
+            {/* SECTION 2: TERMS */}
+            <section className="bg-indigo-50/30 p-8 rounded-[2.5rem] border border-indigo-100/50 space-y-6">
               <div className="flex items-center gap-3 text-indigo-900 mb-2">
                 <CreditCard size={20} className="text-indigo-600"/>
                 <h3 className="font-black uppercase text-sm tracking-widest">Trade & Credit Config</h3>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-1 block">Payment Terms</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {TERM_OPTIONS.map(term => (
-                      <button 
-                        key={term}
-                        type="button"
-                        onClick={() => setFormData(prev => ({...prev, paymentTerms: term}))}
-                        className={`py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 transition-all ${formData.paymentTerms === term ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-white border-white text-gray-400 hover:border-indigo-100 hover:text-indigo-600'}`}
-                      >
-                        {term}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-1 block">Pricing Tier (Markup)</label>
-                  <div className="relative group">
-                    <Tags size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none group-focus-within:text-indigo-600 transition-colors"/>
-                    <select 
-                      name="markup"
-                      value={formData.markup}
-                      onChange={handleInputChange}
-                      className="w-full pl-11 pr-10 py-4 bg-white border border-gray-100 rounded-2xl font-bold text-sm text-gray-900 outline-none focus:ring-4 focus:ring-indigo-50/5 transition-all appearance-none cursor-pointer"
+              <div>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-1 block">Payment Terms</label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {TERM_OPTIONS.map(term => (
+                    <button 
+                      key={term}
+                      type="button"
+                      onClick={() => setFormData(prev => ({...prev, paymentTerms: term}))}
+                      className={`py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 transition-all ${formData.paymentTerms === term ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-white border-white text-gray-400 hover:border-indigo-100 hover:text-indigo-600'}`}
                     >
-                      {PRICING_TIERS.map(tier => (
-                        <option key={tier.value} value={tier.value}>{tier.label}</option>
-                      ))}
-                    </select>
-                    <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none"/>
-                  </div>
+                      {term}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -237,7 +206,7 @@ export const InviteBuyerModal: React.FC<InviteBuyerModalProps> = ({ isOpen, onCl
              </div>
              <div>
                 <h3 className="text-3xl font-black text-[#0F172A] tracking-tighter uppercase mb-2">Portal Ready</h3>
-                <p className="text-gray-500 font-medium max-w-md mx-auto leading-relaxed">Invitation generated for <span className="text-gray-900 font-bold">{formData.businessName}</span>. This entity is now in the "Waiting" queue.</p>
+                <p className="text-gray-500 font-medium max-w-md mx-auto leading-relaxed">Invitation generated for <span className="text-gray-900 font-bold">{formData.businessName}</span>. Share the link below to initiate the onboarding process.</p>
              </div>
 
              <div className="space-y-4">

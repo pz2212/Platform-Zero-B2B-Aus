@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   Gift, Users, Tag, Calendar, Megaphone, Plus, Trash2, 
@@ -5,7 +6,7 @@ import {
   ArrowRight, Percent, Briefcase, Sparkles, Save, Check, Loader2,
   Clock, ShieldCheck, History, UserCheck, ChevronDown, Info,
   Wallet, ArrowUpRight, Lock, AlertCircle, FileText, Banknote,
-  // Fix line 351: Added missing CheckCircle to imports
+  // Fix: Added CheckCircle import
   CheckCircle
 } from 'lucide-react';
 import { mockService, INDUSTRIES, RoleIncentive } from '../services/mockDataService';
@@ -240,7 +241,7 @@ export const CustomerPortals: React.FC = () => {
                                 </div>
                             </div>
                             
-                            {/* Wholesaler Specific Rule Constraint (Requested Change) */}
+                            {/* Wholesaler Specific Rule Constraint */}
                             {selectedRole === UserRole.WHOLESALER && (
                                 <div className="p-4 bg-orange-50 border border-orange-100 rounded-2xl flex items-start gap-3">
                                     <Info size={16} className="text-orange-500 shrink-0 mt-0.5" />
@@ -456,7 +457,7 @@ export const CustomerPortals: React.FC = () => {
           </div>
       )}
 
-      {/* Industry Incentive Controls (Catalog Multipliers) */}
+      {/* Industry Incentive Controls */}
       {activeTab === 'growth' && (
           <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
             <div className="p-10 border-b border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row justify-between items-center gap-6">

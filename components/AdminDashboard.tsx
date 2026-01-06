@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { InventoryItem, User, UserRole, Order, Customer, Product } from '../types';
 import { mockService } from '../services/mockDataService';
+import { triggerNativeSms } from '../services/smsService';
 import { 
   LayoutDashboard, ShoppingCart, DollarSign, Box, Users, 
   ArrowRight, Store, Search, MoreVertical, CheckCircle, TrendingUp,
@@ -10,20 +11,40 @@ import {
   UserCheck, AlertTriangle, Wallet, BarChart3, TrendingDown, Info, Loader2,
   Filter, ArrowLeft, Receipt, ChevronUp, History, ClipboardList, Truck,
   MapPin, Calendar, CheckCircle2, Timer, Briefcase, UserCog,
-  Sprout, Tags
+  Sprout, Smartphone, Mail, Link as LinkIcon, ArrowUpRight
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 type DrillDownType = 'ORDERS' | 'WHOLESALERS' | 'REVENUE' | 'LEDGER' | null;
 type RoleFilterType = 'ALL' | 'BUYER' | 'SUPPLIER' | 'STAFF';
 
-const PRICING_TIERS = [
-  { label: 'Tier 1 (30% Markup)', value: 30 },
-  { label: 'Tier 2 (25% Markup)', value: 25 },
-  { label: 'Tier 3 (20% Markup)', value: 20 },
-  { label: 'Tier 4 (15% Markup)', value: 15 },
-  { label: 'Tier 5 (10% Markup)', value: 10 },
-];
+const PortalLinkModal = ({ isOpen, onClose, entity }: { isOpen: boolean, onClose: () => void, entity: any }) => {
+    if (!isOpen || !entity) return null;
+    const portalLink = window.location.origin + window.location.pathname + '#login';
+    
+    return (
+        <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
+            <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 border-2 border-white/50 p-10 text-center">
+                <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-6 text-indigo-600">
+                    <LinkIcon size={32}/>
+                </div>
+                <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tight mb-2">Portal Gateway</h3>
+                <p className="text-gray-500 text-sm mb-8 leading-relaxed">External access link for <span className="text-gray-900 font-bold">{entity.businessName || entity.name}</span>. Use this to audit user experience or troubleshoot issues.</p>
+                
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 font-mono text-[10px] font-black text-indigo-600 break-all mb-8 shadow-inner">
+                    {portalLink}
+                </div>
+
+                <div className="flex gap-3">
+                    <button onClick={onClose} className="flex-1 py-4 bg-gray-100 text-gray-400 font-black rounded-2xl text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all">Dismiss</button>
+                    <a href={portalLink} target="_blank" rel="noreferrer" className="flex-[2] py-4 bg-indigo-600 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-indigo-100 flex items-center justify-center gap-2 text-center no-underline">
+                        Open Portal Access <ArrowUpRight size={14}/>
+                    </a>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const CustomerOpsModal = ({ isOpen, onClose, customer, allOrders, products, allUsers }: { 
     isOpen: boolean, 
@@ -37,7 +58,7 @@ const CustomerOpsModal = ({ isOpen, onClose, customer, allOrders, products, allU
 
     if (!isOpen || !customer) return null;
 
-    const customerOrders = allOrders.filter(o => o.buyerId === customer.id).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const customerOrders = allOrders.filter(o => o.buyerId === customer.id).sort((a, b) => b.date.localeCompare(a.date));
     const supplier = allUsers.find(u => u.id === customer.connectedSupplierId);
 
     const getStatusSteps = (order: Order) => {
@@ -231,6 +252,71 @@ const CustomerOpsModal = ({ isOpen, onClose, customer, allOrders, products, allU
     );
 };
 
+const MarkupEditorModal = ({ isOpen, onClose, customer, onUpdate }: { isOpen: boolean, onClose: () => void, customer: Customer | null, onUpdate: () => void }) => {
+    const [markup, setMarkup] = useState<string>('');
+    const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+        if (customer) setMarkup((customer.pzMarkup || 15).toString());
+    }, [customer]);
+
+    if (!isOpen || !customer) return null;
+
+    const handleSave = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSaving(true);
+        mockService.updateCustomerMarkup(customer.id, parseFloat(markup));
+        await new Promise(r => setTimeout(r, 600));
+        setIsSaving(false);
+        onUpdate();
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+                <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                    <div>
+                        <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">Configure PZ Markup</h2>
+                        <p className="text-xs text-gray-400 font-black uppercase tracking-widest mt-1">{customer.businessName}</p>
+                    </div>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-2"><X size={24}/></button>
+                </div>
+                
+                <form onSubmit={handleSave} className="p-10 space-y-8">
+                    <div className="space-y-6">
+                        <div>
+                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">Platform Sales Margin (%)</label>
+                            <div className="relative group">
+                                <Percent className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-emerald-500 transition-colors" size={24}/>
+                                <input 
+                                    required 
+                                    type="number" 
+                                    step="0.1"
+                                    className="w-full pl-14 pr-6 py-6 bg-gray-50 border-2 border-gray-100 rounded-[1.75rem] font-black text-4xl text-gray-900 outline-none focus:bg-white focus:border-emerald-500 transition-all shadow-inner-sm" 
+                                    value={markup} 
+                                    onChange={e => setMarkup(e.target.value)} 
+                                />
+                            </div>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-4 flex items-center gap-2">
+                                <Info size={12}/> This markup is applied to all source prices for this buyer.
+                            </p>
+                        </div>
+                    </div>
+
+                    <button 
+                        type="submit"
+                        disabled={isSaving}
+                        className="w-full py-5 bg-[#043003] text-white rounded-[1.5rem] font-black uppercase tracking-[0.2em] text-xs shadow-xl shadow-emerald-100 hover:bg-black transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                    >
+                        {isSaving ? <Loader2 className="animate-spin" size={20}/> : <><CheckCircle size={20}/> Update Trade Logic</>}
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
+};
+
 const RepAssignmentModal = ({ isOpen, onClose, customer, reps, onUpdate }: { isOpen: boolean, onClose: () => void, customer: Customer | null, reps: User[], onUpdate: () => void }) => {
     const [isSaving, setIsSaving] = useState(false);
 
@@ -282,74 +368,13 @@ const RepAssignmentModal = ({ isOpen, onClose, customer, reps, onUpdate }: { isO
     );
 };
 
-const MarkupEditorModal = ({ isOpen, onClose, customer, onUpdate }: { isOpen: boolean, onClose: () => void, customer: Customer | null, onUpdate: () => void }) => {
-    const [markup, setMarkup] = useState<string>('');
-    const [isSaving, setIsSaving] = useState(false);
-
-    useEffect(() => {
-        if (customer) setMarkup((customer.pzMarkup || 15).toString());
-    }, [customer]);
-
-    if (!isOpen || !customer) return null;
-
-    const handleSave = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsSaving(true);
-        mockService.updateCustomerMarkup(customer.id, parseFloat(markup));
-        await new Promise(r => setTimeout(r, 600));
-        setIsSaving(false);
-        onUpdate();
-        onClose();
-    };
-
-    return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
-            <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-                <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                    <div>
-                        <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">Configure Pricing Tier</h2>
-                        <p className="text-xs text-gray-400 font-black uppercase tracking-widest mt-1">{customer.businessName}</p>
-                    </div>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-2"><X size={24}/></button>
-                </div>
-                
-                <form onSubmit={handleSave} className="p-10 space-y-8">
-                    <div className="space-y-6">
-                        <div>
-                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">Platform Sales Tier</label>
-                            <div className="relative group">
-                                <Tags className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-indigo-600 transition-colors" size={24}/>
-                                <select 
-                                    className="w-full pl-14 pr-10 py-5 bg-gray-50 border-2 border-gray-100 rounded-[1.75rem] font-black text-xl text-gray-900 outline-none focus:bg-white focus:border-indigo-500 transition-all shadow-inner-sm appearance-none cursor-pointer"
-                                    value={markup}
-                                    onChange={(e) => setMarkup(e.target.value)}
-                                >
-                                    {PRICING_TIERS.map(tier => (
-                                        <option key={tier.value} value={tier.value}>{tier.label}</option>
-                                    ))}
-                                </select>
-                                <ChevronDown size={24} className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none" />
-                            </div>
-                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-4 flex items-center gap-2">
-                                <Info size={12}/> This tier determines the markup applied to wholesale prices.
-                            </p>
-                        </div>
-                    </div>
-
-                    <button 
-                        type="submit"
-                        disabled={isSaving}
-                        className="w-full py-5 bg-[#043003] text-white rounded-[1.5rem] font-black uppercase tracking-[0.2em] text-xs shadow-xl shadow-emerald-100 hover:bg-black transition-all flex items-center justify-center gap-3 disabled:opacity-50"
-                    >
-                        {isSaving ? <Loader2 className="animate-spin" size={20}/> : <><CheckCircle size={20}/> Update Trade Logic</>}
-                    </button>
-                </form>
-            </div>
-        </div>
-    );
-};
-
-const ActionDropdown = ({ entity, onEditMarkup, onAssignRep, onViewOps }: { entity: any, onEditMarkup: (c: any) => void, onAssignRep: (c: any) => void, onViewOps: (c: any) => void }) => {
+const ActionDropdown = ({ entity, onEditMarkup, onAssignRep, onViewOps, onViewPortal }: { 
+    entity: any, 
+    onEditMarkup: (c: any) => void, 
+    onAssignRep: (c: any) => void, 
+    onViewOps: (c: any) => void,
+    onViewPortal: (c: any) => void
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -365,35 +390,40 @@ const ActionDropdown = ({ entity, onEditMarkup, onAssignRep, onViewOps }: { enti
 
   const handleAction = (label: string) => {
       setIsOpen(false);
-      if (label === 'Configure Pricing Tier') onEditMarkup(entity);
+      if (label === 'Configure Markup') onEditMarkup(entity);
       if (label === 'Assign Sales Rep') onAssignRep(entity);
       if (label === 'View Operations') onViewOps(entity);
+      if (label === 'View Portal Access') onViewPortal(entity);
   };
 
   const menuItems = [
     { label: 'View Operations', icon: Eye, color: 'text-indigo-600' },
     { label: 'Edit Profile', icon: Pencil, color: 'text-emerald-600' },
-    { label: 'Configure Pricing Tier', icon: Tags, color: 'text-orange-500', buyerOnly: true },
+    { label: 'View Portal Access', icon: LinkIcon, color: 'text-blue-500' },
+    { label: 'Configure Markup', icon: Settings, color: 'text-orange-500', buyerOnly: true },
     { label: 'Assign Sales Rep', icon: UserPlus, color: 'text-slate-500', border: true, buyerOnly: true },
-    { label: 'Assign Accounts Rep', icon: FileText, color: 'text-slate-500', buyerOnly: true },
   ];
 
   return (
     <div className="relative" ref={dropdownRef}>
       <button 
-        onClick={() => setIsOpen(!isOpen)}
-        className={`p-3 rounded-xl transition-all border ${isOpen ? 'bg-gray-100 border-gray-200 text-gray-900 shadow-inner' : 'bg-white border-transparent text-gray-400 hover:text-gray-900 hover:bg-gray-50'}`}
+        onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
+        className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all border ${
+          isOpen 
+            ? 'bg-indigo-50 border-indigo-200 text-indigo-600 shadow-inner' 
+            : 'bg-gray-50 border-gray-100 text-gray-400 hover:text-gray-900 hover:bg-gray-100 shadow-sm'
+        }`}
       >
         <MoreVertical size={20}/>
       </button>
       
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-gray-100 z-[100] py-2 animate-in zoom-in-95 duration-150 origin-top-right">
+        <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-[1.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-gray-100 z-[100] py-3 animate-in zoom-in-95 duration-150 origin-top-right">
           {menuItems.map((item, idx) => (
             <React.Fragment key={item.label}>
               {item.border && <div className="h-px bg-gray-50 my-2 mx-4" />}
               <button 
-                onClick={() => handleAction(item.label)}
+                onClick={(e) => { e.stopPropagation(); handleAction(item.label); }}
                 className="w-full flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition-colors group"
               >
                 <div className={`${item.color} transition-transform group-hover:scale-110`}>
@@ -428,21 +458,11 @@ export const AdminDashboard: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [pendingCount, setPendingCount] = useState(0);
 
-  // New Management UI State
   const [roleFilter, setRoleFilter] = useState<RoleFilterType>('ALL');
-
-  // Drill-down UI State
-  const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(null);
-
-  // Modal States
   const [editingMarkupCustomer, setEditingMarkupCustomer] = useState<Customer | null>(null);
   const [editingRepCustomer, setEditingRepCustomer] = useState<Customer | null>(null);
   const [viewingOpsCustomer, setViewingOpsCustomer] = useState<Customer | null>(null);
-
-  // Data for Drill Downs
-  const [drillDownList, setDrillDownList] = useState<Order[]>([]);
-  const [wholesalersList, setWholesalersList] = useState<User[]>([]);
-  const [revenueByEntity, setRevenueByEntity] = useState<any[]>([]);
+  const [viewingPortalEntity, setViewingPortalEntity] = useState<any | null>(null);
 
   const loadStats = () => {
       const orders = mockService.getOrders('u1');
@@ -461,15 +481,6 @@ export const AdminDashboard: React.FC = () => {
       const todaysOrders = orders.filter(o => new Date(o.date).toDateString() === today);
       const totalGmv = orders.reduce((sum, o) => sum + o.totalAmount, 0);
       const wholesalers = users.filter(u => u.role === UserRole.WHOLESALER);
-
-      const revMap: Record<string, number> = {};
-      orders.forEach(o => {
-        revMap[o.buyerId] = (revMap[o.buyerId] || 0) + o.totalAmount;
-      });
-      const revByEntity = Object.entries(revMap).map(([id, amount]) => ({
-        entity: users.find(u => u.id === id)?.businessName || customersList.find(c => c.id === id)?.businessName || 'Guest User',
-        amount
-      })).sort((a, b) => b.amount - a.amount);
 
       let totalWaste = 0;
       let totalCo2 = 0;
@@ -490,8 +501,6 @@ export const AdminDashboard: React.FC = () => {
         co2Saved: totalCo2
       });
       setCustomers(customersList);
-      setWholesalersList(wholesalers);
-      setRevenueByEntity(revByEntity);
   };
 
   useEffect(() => {
@@ -500,7 +509,10 @@ export const AdminDashboard: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Aggregated Financials
+  const wholesalersAndFarmers = useMemo(() => {
+      return allUsers.filter(u => u.role === UserRole.WHOLESALER || u.role === UserRole.FARMER);
+  }, [allUsers]);
+
   const financials = useMemo(() => {
     const map: Record<string, { orders: number, outstanding: number, ltv: number, profit: number }> = {};
     
@@ -520,14 +532,13 @@ export const AdminDashboard: React.FC = () => {
     return map;
   }, [allOrders, customers]);
 
-  // Combined Directory Logic
   const unifiedDirectory = useMemo(() => {
     return allUsers.map(u => {
         const custData = customers.find(c => c.id === u.id);
         const financialData = financials[u.id] || { orders: 0, outstanding: 0, ltv: 0, profit: 0 };
         return {
             ...u,
-            ...custData, // Merges connection status, markup, etc.
+            ...custData,
             ...financialData,
             name: u.name,
             id: u.id,
@@ -535,8 +546,8 @@ export const AdminDashboard: React.FC = () => {
             businessName: u.businessName
         };
     }).filter(e => {
-        const matchesSearch = e.businessName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                            e.name.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesSearch = (e.businessName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) || 
+                            (e.name?.toLowerCase() || '').includes(searchTerm.toLowerCase());
         
         if (roleFilter === 'BUYER') return matchesSearch && (e.role === UserRole.CONSUMER || e.role === UserRole.GROCERY);
         if (roleFilter === 'SUPPLIER') return matchesSearch && (e.role === UserRole.WHOLESALER || e.role === UserRole.FARMER);
@@ -545,26 +556,45 @@ export const AdminDashboard: React.FC = () => {
     });
   }, [allUsers, customers, financials, searchTerm, roleFilter]);
 
+  const unassignedBuyerCount = useMemo(() => {
+    return unifiedDirectory.filter(e => (e.role === UserRole.CONSUMER || e.role === UserRole.GROCERY) && !e.connectedSupplierId).length;
+  }, [unifiedDirectory]);
+
+  const handleAssignSupplier = (customerId: string, supplierId: string) => {
+    if (!supplierId) return;
+    mockService.updateCustomerSupplier(customerId, supplierId);
+    loadStats();
+    alert("Buyer anchor successfully mapped to supplier.");
+  };
+
   const handleKpiClick = (id: string) => {
     setDrillDownCustomerId(null);
-    setExpandedInvoiceId(null);
     if (id === 'IMPACT') {
       navigate('/impact');
     } else {
-        if (id === 'ORDERS') setDrillDownList(allOrders.filter(o => new Date(o.date).toDateString() === new Date().toDateString()));
         setActiveDrillDown(id as DrillDownType);
     }
   };
 
   const handleCustomerLedgerDrillDown = (customerId: string) => {
     setDrillDownCustomerId(customerId);
-    setExpandedInvoiceId(null);
-    setDrillDownList(allOrders.filter(o => o.buyerId === customerId && o.paymentStatus !== 'Paid'));
     setActiveDrillDown('LEDGER');
   };
 
+  const handleDispatchAccess = (entity: any) => {
+      const portalLink = window.location.origin + window.location.pathname + '#login';
+      const message = `Hi ${entity.name}! Your Platform Zero portal for ${entity.businessName} is ready. Access it here to view live inventory and place orders: ${portalLink}`;
+      
+      if (entity.phone) {
+          triggerNativeSms(entity.phone, message);
+          alert(`Portal link dispatched to ${entity.businessName} via SMS and Email simulation.`);
+      } else {
+          alert(`Portal link dispatched to ${entity.email}. (SMS fallback failed: no number on file)`);
+      }
+  };
+
   return (
-    <div className="space-y-10 animate-in fade-in duration-500 pb-20 max-w-[1600px] mx-auto">
+    <div className="space-y-10 animate-in fade-in duration-500 pb-20">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
           <h1 className="text-3xl font-black text-gray-900 tracking-tight uppercase leading-none">HQ Control Center</h1>
@@ -639,20 +669,22 @@ export const AdminDashboard: React.FC = () => {
             </div>
 
             <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
-                {/* ROLE TABS */}
                 <div className="bg-gray-100 p-1 rounded-2xl flex gap-1 shadow-inner-sm w-full sm:w-auto overflow-x-auto no-scrollbar">
                     {[
                         { id: 'ALL', label: 'All Users', icon: Users },
-                        { id: 'BUYER', label: 'Buyers', icon: ShoppingCart },
+                        { id: 'BUYER', label: 'Buyers', icon: ShoppingCart, badge: unassignedBuyerCount },
                         { id: 'SUPPLIER', label: 'Suppliers', icon: Sprout },
                         { id: 'STAFF', label: 'HQ Staff', icon: UserCog }
                     ].map((tab) => (
                         <button 
                             key={tab.id}
                             onClick={() => setRoleFilter(tab.id as RoleFilterType)}
-                            className={`flex-1 sm:flex-none px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${roleFilter === tab.id ? 'bg-white text-gray-900 shadow-sm ring-1 ring-black/5' : 'text-gray-400 hover:text-gray-600'}`}
+                            className={`flex-1 sm:flex-none px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap relative ${roleFilter === tab.id ? 'bg-white text-gray-900 shadow-sm ring-1 ring-black/5' : 'text-gray-400 hover:text-gray-600'}`}
                         >
                             <tab.icon size={14}/> {tab.label}
+                            {tab.badge !== undefined && tab.badge > 0 && (
+                                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-white shadow-sm">{tab.badge}</span>
+                            )}
                         </button>
                     ))}
                 </div>
@@ -664,7 +696,7 @@ export const AdminDashboard: React.FC = () => {
                         placeholder="Search network registry..." 
                         value={searchTerm} 
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-12 pr-6 py-4 bg-white border border-gray-200 rounded-[1.25rem] text-sm font-bold text-slate-900 focus:ring-8 focus:ring-indigo-50/50 outline-none transition-all shadow-sm" 
+                        className="w-full pl-12 pr-6 py-4 bg-white border border-gray-200 rounded-[1.25rem] text-sm font-bold text-slate-900 focus:ring-8 focus:ring-indigo-50/5 outline-none transition-all shadow-sm" 
                     />
                 </div>
             </div>
@@ -678,7 +710,6 @@ export const AdminDashboard: React.FC = () => {
                         <th className="px-8 py-8">Role / Type</th>
                         <th className="px-8 py-8">Status</th>
                         
-                        {/* Dynamic Columns based on filter */}
                         {roleFilter === 'STAFF' ? (
                             <>
                                 <th className="px-8 py-8 text-right">Commission</th>
@@ -687,7 +718,7 @@ export const AdminDashboard: React.FC = () => {
                         ) : (
                             <>
                                 <th className="px-8 py-8">Connected Supplier</th>
-                                <th className="px-8 py-8 text-right">Markup Tier</th>
+                                <th className="px-8 py-8 text-right">PZ Markup</th>
                                 <th className="px-8 py-8 text-center">Orders</th>
                                 <th className="px-8 py-8 text-center">Outstanding</th>
                                 <th className="px-8 py-8 text-right">Lifetime Value</th>
@@ -701,20 +732,23 @@ export const AdminDashboard: React.FC = () => {
                 <tbody className="divide-y divide-gray-50">
                     {unifiedDirectory.map(entity => {
                         const isStaff = entity.role === UserRole.ADMIN || entity.role === UserRole.PZ_REP;
+                        const isBuyer = entity.role === UserRole.CONSUMER || entity.role === UserRole.GROCERY;
+                        const isUnassigned = isBuyer && !entity.connectedSupplierId;
                         const isLedgerActive = drillDownCustomerId === entity.id && activeDrillDown === 'LEDGER';
                         
                         return (
-                            <tr key={entity.id} className="hover:bg-gray-50/50 transition-colors group cursor-pointer" onClick={() => !isStaff && setViewingOpsCustomer(entity as any)}>
+                            <tr key={entity.id} className={`hover:bg-gray-50/50 transition-colors group cursor-pointer ${isUnassigned ? 'bg-red-50/30' : ''}`} onClick={() => !isStaff && setViewingOpsCustomer(entity as any)}>
                                 <td className="px-8 py-7">
                                     <div className="flex items-center gap-4">
                                         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg shadow-inner-sm border ${
+                                            isUnassigned ? 'bg-red-100 text-red-700 border-red-200' :
                                             isStaff ? 'bg-slate-100 text-slate-500' : 
                                             (entity.role === UserRole.FARMER || entity.role === UserRole.WHOLESALER) ? 'bg-emerald-50 text-emerald-700' : 'bg-indigo-50 text-indigo-700'
                                         }`}>
                                             {entity.businessName?.charAt(0) || entity.name.charAt(0)}
                                         </div>
                                         <div>
-                                            <div className="font-black text-gray-900 text-base uppercase tracking-tight leading-none mb-1.5 group-hover:text-indigo-600 transition-colors">{entity.businessName || entity.name}</div>
+                                            <div className={`font-black text-base uppercase tracking-tight leading-none mb-1.5 transition-colors ${isUnassigned ? 'text-red-900 group-hover:text-red-700' : 'text-gray-900 group-hover:text-indigo-600'}`}>{entity.businessName || entity.name}</div>
                                             <div className="text-[9px] text-gray-400 font-black uppercase tracking-widest">{entity.email}</div>
                                         </div>
                                     </div>
@@ -728,11 +762,12 @@ export const AdminDashboard: React.FC = () => {
                                 </td>
                                 <td className="px-8 py-7">
                                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm ${
+                                        isUnassigned ? 'bg-red-500 text-white border-red-400 animate-pulse' :
                                         entity.connectionStatus === 'Active' || entity.isConfirmed
                                         ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
                                         : 'bg-orange-50 text-orange-600 border-orange-100'
                                     }`}>
-                                        {(entity.connectionStatus || 'VERIFIED').toUpperCase()}
+                                        {isUnassigned ? 'ACTION REQUIRED' : (entity.connectionStatus || 'VERIFIED').toUpperCase()}
                                     </span>
                                 </td>
 
@@ -746,7 +781,26 @@ export const AdminDashboard: React.FC = () => {
                                 ) : (
                                     <>
                                         <td className="px-8 py-7">
-                                            <div className="font-black text-gray-900 text-sm uppercase tracking-tight truncate max-w-[140px]">{entity.connectedSupplierName || (entity.role === UserRole.FARMER ? 'Primary Producer' : 'Direct Connection')}</div>
+                                            {isBuyer ? (
+                                                <div className="relative group/sel">
+                                                    <select 
+                                                        className={`w-full bg-transparent font-black text-sm uppercase tracking-tight outline-none appearance-none cursor-pointer pr-6 ${isUnassigned ? 'text-red-500 italic font-black' : 'text-gray-900 font-black'}`}
+                                                        value={entity.connectedSupplierId || ''}
+                                                        onChange={(e) => handleAssignSupplier(entity.id, e.target.value)}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    >
+                                                        <option value="" disabled>{isUnassigned ? 'Assign Anchor...' : 'Select Supplier...'}</option>
+                                                        {wholesalersAndFarmers.map(s => (
+                                                            <option key={s.id} value={s.id}>{s.businessName}</option>
+                                                        ))}
+                                                    </select>
+                                                    <ChevronDown className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none group-hover/sel:text-indigo-600" size={14}/>
+                                                </div>
+                                            ) : (
+                                                <div className="font-black text-sm uppercase tracking-tight text-gray-900">
+                                                    {entity.role === UserRole.FARMER ? 'Primary Producer' : 'Direct Wholesale Node'}
+                                                </div>
+                                            )}
                                         </td>
                                         <td className="px-8 py-7 text-right">
                                             <button 
@@ -789,12 +843,23 @@ export const AdminDashboard: React.FC = () => {
                                 )}
 
                                 <td className="px-8 py-7 text-right">
-                                    <ActionDropdown 
-                                        entity={entity} 
-                                        onEditMarkup={setEditingMarkupCustomer} 
-                                        onAssignRep={setEditingRepCustomer}
-                                        onViewOps={setViewingOpsCustomer}
-                                    />
+                                    <div className="flex items-center justify-end gap-3">
+                                        {!isUnassigned && !isStaff && (
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); handleDispatchAccess(entity); }}
+                                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-emerald-100 transition-all active:scale-95 group/btn"
+                                            >
+                                                <Smartphone size={14}/> Dispatch Access
+                                            </button>
+                                        )}
+                                        <ActionDropdown 
+                                            entity={entity} 
+                                            onEditMarkup={setEditingMarkupCustomer} 
+                                            onAssignRep={setEditingRepCustomer}
+                                            onViewOps={setViewingOpsCustomer}
+                                            onViewPortal={setViewingPortalEntity}
+                                        />
+                                    </div>
                                 </td>
                             </tr>
                         );
@@ -804,7 +869,6 @@ export const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* MODALS RENDERED BELOW */}
       <MarkupEditorModal 
         isOpen={!!editingMarkupCustomer} 
         onClose={() => setEditingMarkupCustomer(null)}
@@ -825,6 +889,11 @@ export const AdminDashboard: React.FC = () => {
         allOrders={allOrders}
         products={allProducts}
         allUsers={allUsers}
+      />
+      <PortalLinkModal 
+        isOpen={!!viewingPortalEntity}
+        onClose={() => setViewingPortalEntity(null)}
+        entity={viewingPortalEntity}
       />
     </div>
   );
